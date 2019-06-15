@@ -1,8 +1,8 @@
 use std::io::{self, Write};
 
+use crate::interpreter::Interpreter;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
-use crate::interpreter::Interpreter;
 
 pub fn start() {
     println!("Welcome to the lite repl!");

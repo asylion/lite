@@ -1,6 +1,6 @@
 use crate::ast::*;
-use crate::token::{Token, TokenKind};
 use crate::lexer::Lexer;
+use crate::token::{Token, TokenKind};
 
 pub struct Parser {
     lexer: Lexer,
@@ -56,13 +56,11 @@ impl Parser {
             };
             self.consume();
 
-            expr = Expr::BinaryExpr(
-                BinaryExpr {
-                    left: Box::new(expr),
-                    op: op,
-                    right: Box::new(self.parse_multiplication()),
-                }
-            );
+            expr = Expr::BinaryExpr(BinaryExpr {
+                left: Box::new(expr),
+                op: op,
+                right: Box::new(self.parse_multiplication()),
+            });
         }
     }
 
@@ -77,13 +75,11 @@ impl Parser {
             };
             self.consume();
 
-            expr = Expr::BinaryExpr(
-                BinaryExpr {
-                    left: Box::new(expr),
-                    op: op,
-                    right: Box::new(self.parse_unary()),
-                }
-            );
+            expr = Expr::BinaryExpr(BinaryExpr {
+                left: Box::new(expr),
+                op: op,
+                right: Box::new(self.parse_unary()),
+            });
         }
     }
 
@@ -94,12 +90,10 @@ impl Parser {
         };
         self.consume();
 
-        Expr::UnaryExpr(
-            UnaryExpr {
-                op: op,
-                expr: Box::new(self.parse_unary()),
-            }
-        )
+        Expr::UnaryExpr(UnaryExpr {
+            op: op,
+            expr: Box::new(self.parse_unary()),
+        })
     }
 
     fn parse_term(&mut self) -> Expr {
@@ -110,7 +104,7 @@ impl Parser {
                 let expr = self.parse_expr();
                 self.expect(TokenKind::RParen);
                 expr
-            },
+            }
             _ => panic!("Unexpected token: {:?}", self.current()),
         }
     }
@@ -118,7 +112,9 @@ impl Parser {
     fn parse_literal_number(&mut self) -> Expr {
         let value = self.current().value.clone();
         self.expect(TokenKind::Number);
-        Expr::LiteralNumber(LiteralNumber { value: value.parse::<i64>().unwrap() })
+        Expr::LiteralNumber(LiteralNumber {
+            value: value.parse::<i64>().unwrap(),
+        })
     }
 
     fn current(&self) -> &Token {
@@ -163,9 +159,7 @@ mod tests {
 
     #[test]
     fn test_parse_unary_expr() {
-        let tests = vec![
-            ("-1", UnaryOp::Minus, 1)
-        ];
+        let tests = vec![("-1", UnaryOp::Minus, 1)];
 
         for (input, op, val) in tests {
             let program = parse_program(input);
@@ -251,7 +245,7 @@ mod tests {
                 if num.value != value {
                     panic!("Expected {}, but got {}", value, num.value);
                 }
-            },
+            }
             _ => panic!("Expected a LiteralNumber, but got {:?}", expr),
         }
     }

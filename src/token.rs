@@ -21,10 +21,16 @@ pub struct Token {
 
 impl Token {
     pub fn from_string<T: Into<String>>(kind: TokenKind, value: T) -> Token {
-        Token { kind: kind, value: value.into() }
+        Token {
+            kind: kind,
+            value: value.into(),
+        }
     }
 
     pub fn from_char(kind: TokenKind, value: char) -> Token {
-        Token { kind: kind, value: value.to_string() }
+        Token {
+            kind: kind,
+            value: value.to_string(),
+        }
     }
 }

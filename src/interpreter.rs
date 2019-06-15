@@ -31,12 +31,8 @@ impl Interpreter {
     fn evaluate_expr(&self, expr: Expr) -> Value {
         match expr {
             Expr::LiteralNumber(expr) => Value::Number(expr.value),
-            Expr::UnaryExpr(expr) => {
-                self.evaluate_unary_expr(expr.op, *expr.expr)
-            },
-            Expr::BinaryExpr(expr) => {
-                self.evaluate_binary_expr(*expr.left, expr.op, *expr.right)
-            },
+            Expr::UnaryExpr(expr) => self.evaluate_unary_expr(expr.op, *expr.expr),
+            Expr::BinaryExpr(expr) => self.evaluate_binary_expr(*expr.left, expr.op, *expr.right),
         }
     }
 
@@ -50,7 +46,7 @@ impl Interpreter {
 
     fn evaluate_numeric_unary_expr(&self, op: UnaryOp, value: i64) -> Value {
         match op {
-            UnaryOp::Minus => Value::Number(-value)
+            UnaryOp::Minus => Value::Number(-value),
         }
     }
 
@@ -60,17 +56,12 @@ impl Interpreter {
         match (left, right) {
             (Value::Number(left), Value::Number(right)) => {
                 self.evaluate_numeric_binary_expr(left, op, right)
-            },
+            }
             _ => unimplemented!(),
         }
     }
 
-    fn evaluate_numeric_binary_expr(
-        &self,
-        left: i64,
-        op: BinaryOp,
-        right: i64,
-    ) -> Value {
+    fn evaluate_numeric_binary_expr(&self, left: i64, op: BinaryOp, right: i64) -> Value {
         let value = match op {
             BinaryOp::Plus => left + right,
             BinaryOp::Minus => left - right,

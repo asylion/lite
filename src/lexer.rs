@@ -20,20 +20,18 @@ impl Lexer {
         self.skip_whitespace();
 
         let tok = match self.current_char() {
-            Some(ch) => {
-                match ch {
-                    '+' => Token::from_char(TokenKind::Plus, ch),
-                    '-' => Token::from_char(TokenKind::Minus, ch),
-                    '*' => Token::from_char(TokenKind::Multiply, ch),
-                    '/' => Token::from_char(TokenKind::Divide, ch),
-                    '(' => Token::from_char(TokenKind::LParen, ch),
-                    ')' => Token::from_char(TokenKind::RParen, ch),
-                    _ => {
-                        if ch.is_ascii_digit() {
-                            return self.number();
-                        }
-                        panic!("Unrecognized token: {:?}", ch)
+            Some(ch) => match ch {
+                '+' => Token::from_char(TokenKind::Plus, ch),
+                '-' => Token::from_char(TokenKind::Minus, ch),
+                '*' => Token::from_char(TokenKind::Multiply, ch),
+                '/' => Token::from_char(TokenKind::Divide, ch),
+                '(' => Token::from_char(TokenKind::LParen, ch),
+                ')' => Token::from_char(TokenKind::RParen, ch),
+                _ => {
+                    if ch.is_ascii_digit() {
+                        return self.number();
                     }
+                    panic!("Unrecognized token: {:?}", ch)
                 }
             },
             None => Token::from_char(TokenKind::Eof, ' '),
@@ -90,8 +88,7 @@ mod tests {
 
     #[test]
     fn test_next_token() {
-        let input =
-"
+        let input = "
 + - * /
 123 + 4
 ()
@@ -112,12 +109,16 @@ mod tests {
 
         for (i, (kind, value)) in expected.into_iter().enumerate() {
             let token = lexer.next_token();
-            assert_eq!(kind, token.kind,
+            assert_eq!(
+                kind, token.kind,
                 "[{}] - Expected token kind: {:?} but got: {:?}",
-                i, kind, token.kind);
-            assert_eq!(value, token.value,
+                i, kind, token.kind
+            );
+            assert_eq!(
+                value, token.value,
                 "[{}] - Expected token value: {:?} but got: {:?}",
-                i, value, token.value);
+                i, value, token.value
+            );
         }
     }
 }

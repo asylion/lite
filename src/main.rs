@@ -1,15 +1,15 @@
 mod ast;
-mod value;
-mod token;
+mod interpreter;
 mod lexer;
 mod parser;
-mod interpreter;
+mod token;
+mod value;
 
 mod repl;
 
+use interpreter::Interpreter;
 use lexer::Lexer;
 use parser::Parser;
-use interpreter::Interpreter;
 
 fn main() {
     repl::start();
