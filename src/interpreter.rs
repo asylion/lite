@@ -34,7 +34,6 @@ impl Interpreter {
             Expr::BinaryExpr(expr) => {
                 self.evaluate_binary_expr(*expr.left, expr.op, *expr.right)
             },
-            _ => unimplemented!(),
         }
     }
 
