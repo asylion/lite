@@ -1,6 +1,7 @@
 #[derive(Debug, PartialEq)]
 pub enum TokenKind {
     Number,
+    Str,
 
     Plus,
     Minus,

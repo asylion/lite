@@ -1,6 +1,7 @@
 #[derive(Debug)]
 pub enum Expr {
     LiteralNumber(LiteralNumber),
+    LiteralString(LiteralString),
     UnaryExpr(UnaryExpr),
     BinaryExpr(BinaryExpr),
 }
@@ -41,6 +42,11 @@ pub struct BinaryExpr {
 #[derive(Debug)]
 pub struct LiteralNumber {
     pub value: i64,
+}
+
+#[derive(Debug)]
+pub struct LiteralString {
+    pub value: String,
 }
 
 #[derive(Debug)]

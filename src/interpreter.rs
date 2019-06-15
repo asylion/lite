@@ -31,6 +31,7 @@ impl Interpreter {
     fn evaluate_expr(&self, expr: Expr) -> Value {
         match expr {
             Expr::LiteralNumber(expr) => Value::Number(expr.value),
+            Expr::LiteralString(expr) => Value::Str(expr.value),
             Expr::UnaryExpr(expr) => self.evaluate_unary_expr(expr.op, *expr.expr),
             Expr::BinaryExpr(expr) => self.evaluate_binary_expr(*expr.left, expr.op, *expr.right),
         }
@@ -56,6 +57,14 @@ impl Interpreter {
         match (left, right) {
             (Value::Number(left), Value::Number(right)) => {
                 self.evaluate_numeric_binary_expr(left, op, right)
+            }
+            (Value::Str(left), Value::Str(right)) => {
+                match op {
+                    BinaryOp::Plus => {
+                        Value::Str(left + &right)
+                    }
+                    _ => panic!("Unsupported operator {:?} for string", op)
+                }
             }
             _ => unimplemented!(),
         }

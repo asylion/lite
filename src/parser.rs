@@ -99,6 +99,7 @@ impl Parser {
     fn parse_term(&mut self) -> Expr {
         match self.current().kind {
             TokenKind::Number => self.parse_literal_number(),
+            TokenKind::Str => self.parse_literal_string(),
             TokenKind::LParen => {
                 self.consume();
                 let expr = self.parse_expr();
@@ -114,6 +115,14 @@ impl Parser {
         self.expect(TokenKind::Number);
         Expr::LiteralNumber(LiteralNumber {
             value: value.parse::<i64>().unwrap(),
+        })
+    }
+
+    fn parse_literal_string(&mut self) -> Expr {
+        let value = self.current().value.clone();
+        self.expect(TokenKind::Str);
+        Expr::LiteralString(LiteralString {
+            value: value,
         })
     }
 

@@ -27,6 +27,7 @@ impl Lexer {
                 '/' => Token::from_char(TokenKind::Divide, ch),
                 '(' => Token::from_char(TokenKind::LParen, ch),
                 ')' => Token::from_char(TokenKind::RParen, ch),
+                '"' => return self.string(),
                 _ => {
                     if ch.is_ascii_digit() {
                         return self.number();
@@ -54,6 +55,25 @@ impl Lexer {
         }
         let number = str::from_utf8(&self.input[start..end]).unwrap();
         Token::from_string(TokenKind::Number, number)
+    }
+
+    fn string(&mut self) -> Token {
+        self.advance(); // Skip opening "
+
+        let start = self.position;
+        let mut end = start;
+        while let Some(ch) = self.current_char() {
+            self.advance();
+
+            if ch == '"' {
+                let string = str::from_utf8(&self.input[start..end]).unwrap();
+                return Token::from_string(TokenKind::Str, string);
+            }
+
+            end += 1;
+        }
+
+        panic!("Unterminated string");
     }
 
     fn skip_whitespace(&mut self) {
@@ -88,11 +108,12 @@ mod tests {
 
     #[test]
     fn test_next_token() {
-        let input = "
+        let input = r#"
 + - * /
 123 + 4
 ()
-";
+"hello"
+"#;
         let mut lexer = Lexer::new(input);
 
         let expected = vec![
@@ -105,6 +126,7 @@ mod tests {
             (TokenKind::Number, "4"),
             (TokenKind::LParen, "("),
             (TokenKind::RParen, ")"),
+            (TokenKind::Str, "hello"),
         ];
 
         for (i, (kind, value)) in expected.into_iter().enumerate() {
