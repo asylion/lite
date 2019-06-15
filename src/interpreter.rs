@@ -31,9 +31,26 @@ impl Interpreter {
     fn evaluate_expr(&self, expr: Expr) -> Value {
         match expr {
             Expr::LiteralNumber(expr) => Value::Number(expr.value),
+            Expr::UnaryExpr(expr) => {
+                self.evaluate_unary_expr(expr.op, *expr.expr)
+            },
             Expr::BinaryExpr(expr) => {
                 self.evaluate_binary_expr(*expr.left, expr.op, *expr.right)
             },
+        }
+    }
+
+    fn evaluate_unary_expr(&self, op: UnaryOp, expr: Expr) -> Value {
+        let value = self.evaluate_expr(expr);
+        match value {
+            Value::Number(num) => self.evaluate_numeric_unary_expr(op, num),
+            _ => panic!("Unary operator not supported for {:?}", value),
+        }
+    }
+
+    fn evaluate_numeric_unary_expr(&self, op: UnaryOp, value: i64) -> Value {
+        match op {
+            UnaryOp::Minus => Value::Number(-value)
         }
     }
 

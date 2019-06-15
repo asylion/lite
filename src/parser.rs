@@ -67,7 +67,7 @@ impl Parser {
     }
 
     fn parse_multiplication(&mut self) -> Expr {
-        let mut expr = self.parse_term();
+        let mut expr = self.parse_unary();
 
         loop {
             let op = match self.current().kind {
@@ -81,10 +81,25 @@ impl Parser {
                 BinaryExpr {
                     left: Box::new(expr),
                     op: op,
-                    right: Box::new(self.parse_term()),
+                    right: Box::new(self.parse_unary()),
                 }
             );
         }
+    }
+
+    fn parse_unary(&mut self) -> Expr {
+        let op = match self.current().kind {
+            TokenKind::Minus => UnaryOp::Minus,
+            _ => return self.parse_term(),
+        };
+        self.consume();
+
+        Expr::UnaryExpr(
+            UnaryExpr {
+                op: op,
+                expr: Box::new(self.parse_unary()),
+            }
+        )
     }
 
     fn parse_term(&mut self) -> Expr {
@@ -143,7 +158,33 @@ mod tests {
         }
 
         let expr_stmt = get_expr_stmt(stmts.pop().unwrap());
-        test_literal_number_expr(expr_stmt.expr, 1)
+        test_literal_number(expr_stmt.expr, 1)
+    }
+
+    #[test]
+    fn test_parse_unary_expr() {
+        let tests = vec![
+            ("-1", UnaryOp::Minus, 1)
+        ];
+
+        for (input, op, val) in tests {
+            let program = parse_program(input);
+
+            let mut stmts = get_statements(program);
+
+            if stmts.len() != 1 {
+                panic!("Expected {} statements, but got {}", 1, stmts.len());
+            }
+
+            let expr_stmt = get_expr_stmt(stmts.pop().unwrap());
+            let unary_expr = get_unary_expr(expr_stmt.expr);
+
+            if unary_expr.op != op {
+                panic!("Expected operator {:?}, but got {:?}", op, unary_expr.op);
+            }
+
+            test_literal_number(*unary_expr.expr, val);
+        }
     }
 
     #[test]
@@ -171,8 +212,8 @@ mod tests {
                 panic!("Expected operator {:?}, but got {:?}", op, binary_expr.op);
             }
 
-            test_literal_number_expr(*binary_expr.left, left_val);
-            test_literal_number_expr(*binary_expr.right, right_val);
+            test_literal_number(*binary_expr.left, left_val);
+            test_literal_number(*binary_expr.right, right_val);
         }
     }
 
@@ -190,6 +231,13 @@ mod tests {
         }
     }
 
+    fn get_unary_expr(expr: Expr) -> UnaryExpr {
+        match expr {
+            Expr::UnaryExpr(expr) => expr,
+            _ => panic!("Expected a UnaryExpr, but got {:?}", expr),
+        }
+    }
+
     fn get_binary_expr(expr: Expr) -> BinaryExpr {
         match expr {
             Expr::BinaryExpr(expr) => expr,
@@ -197,7 +245,7 @@ mod tests {
         }
     }
 
-    fn test_literal_number_expr(expr: Expr, value: i64) {
+    fn test_literal_number(expr: Expr, value: i64) {
         match expr {
             Expr::LiteralNumber(num) => {
                 if num.value != value {

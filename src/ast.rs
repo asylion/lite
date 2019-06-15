@@ -1,6 +1,7 @@
 #[derive(Debug)]
 pub enum Expr {
     LiteralNumber(LiteralNumber),
+    UnaryExpr(UnaryExpr),
     BinaryExpr(BinaryExpr),
 }
 
@@ -11,12 +12,23 @@ pub enum Stmt {
     ExprStmt(ExprStmt),
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub enum UnaryOp {
+    Minus,
+}
+
 #[derive(Debug, PartialEq)]
 pub enum BinaryOp {
     Plus,
     Minus,
     Multiply,
     Divide,
+}
+
+#[derive(Debug)]
+pub struct UnaryExpr {
+    pub op: UnaryOp,
+    pub expr: Box<Expr>,
 }
 
 #[derive(Debug)]
