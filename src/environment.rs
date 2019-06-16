@@ -17,7 +17,7 @@ impl Environment {
         self.values.insert(key, value);
     }
 
-    pub fn get(&mut self, key: String) -> Option<&Value> {
-        self.values.get(&key)
+    pub fn get(&mut self, key: &str) -> Option<&Value> {
+        self.values.get(key)
     }
 }

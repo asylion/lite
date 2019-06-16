@@ -48,9 +48,9 @@ impl Interpreter {
         match expr {
             Expr::LiteralNumber(expr) => Value::Number(expr.value),
             Expr::LiteralString(expr) => Value::Str(expr.value),
-            Expr::Identifier(expr) => match env.get(expr.name) {
+            Expr::Identifier(expr) => match env.get(&expr.name) {
                 Some(value) => value.clone(),
-                None => panic!("Undeclared identifier {}"),
+                None => panic!("Undeclared identifier {}", expr.name),
             },
             Expr::UnaryExpr(expr) => self.evaluate_unary_expr(expr.op, *expr.expr, env),
             Expr::BinaryExpr(expr) => {

@@ -52,7 +52,7 @@ impl Parser {
         self.expect(TokenKind::Ident);
 
         if is_constant && self.current().kind != TokenKind::Assign {
-            panic!("Unassigned val {:?}", name);
+            panic!("Unassigned val {}", name);
         }
 
         let initializer = match self.current().kind {
