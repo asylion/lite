@@ -1,11 +1,14 @@
 use std::io::{self, Write};
 
+use crate::environment::Environment;
 use crate::interpreter::Interpreter;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 
 pub fn start() {
     println!("Welcome to the lite repl!");
+
+    let mut env = Environment::new();
     loop {
         print!(">>> ");
         io::stdout().flush().unwrap();
@@ -17,7 +20,7 @@ pub fn start() {
         let mut parser = Parser::new(lexer);
         let interpreter = Interpreter;
 
-        let value = interpreter.evaluate_program(parser.parse_program());
+        let value = interpreter.evaluate_stmt(parser.parse_program(), &mut env);
 
         println!("{}", value);
     }

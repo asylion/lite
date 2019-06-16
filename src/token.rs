@@ -2,6 +2,7 @@
 pub enum TokenKind {
     Number,
     Str,
+    Ident,
 
     Plus,
     Minus,
@@ -10,6 +11,11 @@ pub enum TokenKind {
 
     LParen,
     RParen,
+
+    Assign,
+
+    Var,
+    Val,
 
     Eof,
 }
@@ -33,5 +39,13 @@ impl Token {
             kind: kind,
             value: value.to_string(),
         }
+    }
+}
+
+pub fn identifier_kind(identifier: &str) -> TokenKind {
+    match identifier {
+        "var" => TokenKind::Var,
+        "val" => TokenKind::Val,
+        _ => TokenKind::Ident,
     }
 }
