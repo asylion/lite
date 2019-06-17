@@ -17,7 +17,7 @@ pub fn start() {
         let mut input = String::new();
         io::stdin().read_line(&mut input).unwrap();
 
-        panic::catch_unwind(AssertUnwindSafe(|| {
+        let _ = panic::catch_unwind(AssertUnwindSafe(|| {
             let lexer = Lexer::new(input);
             let mut parser = Parser::new(lexer);
             let interpreter = Interpreter;
