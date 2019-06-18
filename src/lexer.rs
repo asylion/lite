@@ -27,7 +27,40 @@ impl Lexer {
                 '/' => Token::from_char(TokenKind::Divide, ch),
                 '(' => Token::from_char(TokenKind::LParen, ch),
                 ')' => Token::from_char(TokenKind::RParen, ch),
-                '=' => Token::from_char(TokenKind::Assign, ch),
+                '=' => {
+                    return self.single_or_double_char_token(
+                        '=',
+                        '=',
+                        TokenKind::Assign,
+                        TokenKind::Eq,
+                    );
+                }
+                '&' => return self.double_char_token(ch, TokenKind::And),
+                '|' => return self.double_char_token(ch, TokenKind::Or),
+                '!' => {
+                    return self.single_or_double_char_token(
+                        '!',
+                        '=',
+                        TokenKind::Not,
+                        TokenKind::Neq,
+                    );
+                }
+                '>' => {
+                    return self.single_or_double_char_token(
+                        '>',
+                        '=',
+                        TokenKind::Gt,
+                        TokenKind::Geq,
+                    );
+                }
+                '<' => {
+                    return self.single_or_double_char_token(
+                        '<',
+                        '=',
+                        TokenKind::Lt,
+                        TokenKind::Leq,
+                    );
+                }
                 '"' => return self.string(),
                 _ => {
                     if ch.is_ascii_digit() {
@@ -36,7 +69,7 @@ impl Lexer {
                     if ch.is_ascii_alphabetic() {
                         return self.identifier();
                     }
-                    panic!("Unrecognized token: {:?}", ch)
+                    self.unrecognized(ch)
                 }
             },
             None => Token::from_char(TokenKind::Eof, ' '),
@@ -44,6 +77,43 @@ impl Lexer {
 
         self.advance();
         tok
+    }
+
+    fn single_or_double_char_token(
+        &mut self,
+        first_char: char,
+        second_char: char,
+        single_kind: TokenKind,
+        double_kind: TokenKind,
+    ) -> Token {
+        let mut value = String::new();
+        value.push(first_char);
+        self.advance();
+
+        if let Some(ch) = self.current_char() {
+            if ch == second_char {
+                value.push(ch);
+                self.advance();
+                return Token::from_string(double_kind, value);
+            }
+        }
+        Token::from_string(single_kind, value)
+    }
+
+    fn double_char_token(&mut self, ch: char, kind: TokenKind) -> Token {
+        let mut value = String::new();
+        value.push(ch);
+        self.advance();
+
+        if let Some(second_char) = self.current_char() {
+            if second_char == ch {
+                value.push(ch);
+                self.advance();
+                return Token::from_string(kind, value);
+            }
+            self.unrecognized(second_char)
+        }
+        self.unrecognized(ch)
     }
 
     fn string(&mut self) -> Token {
@@ -118,6 +188,10 @@ impl Lexer {
     fn advance(&mut self) {
         self.position += 1;
     }
+
+    fn unrecognized(&self, ch: char) -> ! {
+        panic!("Unrecognized token: {:?}", ch)
+    }
 }
 
 #[cfg(test)]
@@ -134,6 +208,7 @@ mod tests {
 "hello"
 var
 val x = 5
+&& || ! == != >< >= <=
 "#;
         let mut lexer = Lexer::new(input);
 
@@ -153,6 +228,15 @@ val x = 5
             (TokenKind::Ident, "x"),
             (TokenKind::Assign, "="),
             (TokenKind::Number, "5"),
+            (TokenKind::And, "&&"),
+            (TokenKind::Or, "||"),
+            (TokenKind::Not, "!"),
+            (TokenKind::Eq, "=="),
+            (TokenKind::Neq, "!="),
+            (TokenKind::Gt, ">"),
+            (TokenKind::Lt, "<"),
+            (TokenKind::Geq, ">="),
+            (TokenKind::Leq, "<="),
         ];
 
         for (i, (kind, value)) in expected.into_iter().enumerate() {

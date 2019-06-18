@@ -9,6 +9,18 @@ pub enum TokenKind {
     Multiply,
     Divide,
 
+    And,
+    Or,
+    Not,
+
+    Eq,
+    Neq,
+
+    Gt,
+    Lt,
+    Geq,
+    Leq,
+
     LParen,
     RParen,
 
