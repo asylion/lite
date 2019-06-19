@@ -29,6 +29,8 @@ pub enum TokenKind {
     Var,
     Val,
 
+    Bool,
+
     Eof,
 }
 
@@ -58,6 +60,7 @@ pub fn identifier_kind(identifier: &str) -> TokenKind {
     match identifier {
         "var" => TokenKind::Var,
         "val" => TokenKind::Val,
+        "true" | "false" => TokenKind::Bool,
         _ => TokenKind::Ident,
     }
 }

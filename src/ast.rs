@@ -1,5 +1,6 @@
 #[derive(Debug)]
 pub enum Expr {
+    LiteralBoolean(LiteralBoolean),
     LiteralNumber(LiteralNumber),
     LiteralString(LiteralString),
     Identifier(Identifier),
@@ -18,6 +19,7 @@ pub enum Stmt {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum UnaryOp {
+    Not,
     Minus,
 }
 
@@ -27,6 +29,14 @@ pub enum BinaryOp {
     Minus,
     Multiply,
     Divide,
+    And,
+    Or,
+    Eq,
+    Neq,
+    Gt,
+    Lt,
+    Geq,
+    Leq,
 }
 
 #[derive(Debug)]
@@ -40,6 +50,11 @@ pub struct BinaryExpr {
     pub left: Box<Expr>,
     pub op: BinaryOp,
     pub right: Box<Expr>,
+}
+
+#[derive(Debug)]
+pub struct LiteralBoolean {
+    pub value: bool,
 }
 
 #[derive(Debug)]

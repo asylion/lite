@@ -90,7 +90,83 @@ impl Parser {
     }
 
     fn parse_expr(&mut self) -> Expr {
-        self.parse_addition()
+        self.parse_or()
+    }
+
+    fn parse_or(&mut self) -> Expr {
+        let mut expr = self.parse_and();
+
+        loop {
+            let op = match self.current().kind {
+                TokenKind::Or => BinaryOp::Or,
+                _ => return expr,
+            };
+            self.consume();
+
+            expr = Expr::BinaryExpr(BinaryExpr {
+                left: Box::new(expr),
+                op: op,
+                right: Box::new(self.parse_and()),
+            });
+        }
+    }
+
+    fn parse_and(&mut self) -> Expr {
+        let mut expr = self.parse_equality();
+
+        loop {
+            let op = match self.current().kind {
+                TokenKind::And => BinaryOp::And,
+                _ => return expr,
+            };
+            self.consume();
+
+            expr = Expr::BinaryExpr(BinaryExpr {
+                left: Box::new(expr),
+                op: op,
+                right: Box::new(self.parse_equality()),
+            });
+        }
+    }
+
+    fn parse_equality(&mut self) -> Expr {
+        let mut expr = self.parse_comparison();
+
+        loop {
+            let op = match self.current().kind {
+                TokenKind::Eq => BinaryOp::Eq,
+                TokenKind::Neq => BinaryOp::Neq,
+                _ => return expr,
+            };
+            self.consume();
+
+            expr = Expr::BinaryExpr(BinaryExpr {
+                left: Box::new(expr),
+                op: op,
+                right: Box::new(self.parse_comparison()),
+            });
+        }
+    }
+
+    fn parse_comparison(&mut self) -> Expr {
+        let mut expr = self.parse_addition();
+
+        loop {
+            let op = match self.current().kind {
+                TokenKind::Gt => BinaryOp::Gt,
+                TokenKind::Lt => BinaryOp::Lt,
+                TokenKind::Geq => BinaryOp::Geq,
+                TokenKind::Leq => BinaryOp::Leq,
+                _ => return expr,
+            };
+            self.consume();
+
+            expr = Expr::BinaryExpr(BinaryExpr {
+                left: Box::new(expr),
+                op: op,
+                right: Box::new(self.parse_addition()),
+            });
+        }
     }
 
     fn parse_addition(&mut self) -> Expr {
@@ -133,6 +209,7 @@ impl Parser {
 
     fn parse_unary(&mut self) -> Expr {
         let op = match self.current().kind {
+            TokenKind::Not => UnaryOp::Not,
             TokenKind::Minus => UnaryOp::Minus,
             _ => return self.parse_term(),
         };
@@ -146,6 +223,7 @@ impl Parser {
 
     fn parse_term(&mut self) -> Expr {
         match self.current().kind {
+            TokenKind::Bool => self.parse_literal_boolean(),
             TokenKind::Number => self.parse_literal_number(),
             TokenKind::Str => self.parse_literal_string(),
             TokenKind::Ident => self.parse_identifier(),
@@ -157,6 +235,12 @@ impl Parser {
             }
             _ => panic!("Unexpected token: {:?}", self.current()),
         }
+    }
+
+    fn parse_literal_boolean(&mut self) -> Expr {
+        let value = self.current().value == "true";
+        self.expect(TokenKind::Bool);
+        Expr::LiteralBoolean(LiteralBoolean { value: value })
     }
 
     fn parse_literal_number(&mut self) -> Expr {
@@ -221,7 +305,7 @@ mod tests {
 
     #[test]
     fn test_parse_unary_expr() {
-        let tests = vec![("-1", UnaryOp::Minus, 1)];
+        let tests = vec![("!1", UnaryOp::Not, 1), ("-1", UnaryOp::Minus, 1)];
 
         for (input, op, val) in tests {
             let program = parse_program(input);
@@ -250,6 +334,12 @@ mod tests {
             ("1 - 2", 1, BinaryOp::Minus, 2),
             ("1 * 2", 1, BinaryOp::Multiply, 2),
             ("1 / 2", 1, BinaryOp::Divide, 2),
+            ("1 && 2", 1, BinaryOp::And, 2),
+            ("1 || 2", 1, BinaryOp::Or, 2),
+            ("1 == 2", 1, BinaryOp::Eq, 2),
+            ("1 != 2", 1, BinaryOp::Neq, 2),
+            ("1 > 2", 1, BinaryOp::Gt, 2),
+            ("1 < 2", 1, BinaryOp::Lt, 2),
         ];
 
         for (input, left_val, op, right_val) in tests {

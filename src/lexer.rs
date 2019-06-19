@@ -209,6 +209,7 @@ mod tests {
 var
 val x = 5
 && || ! == != >< >= <=
+true false
 "#;
         let mut lexer = Lexer::new(input);
 
@@ -237,6 +238,8 @@ val x = 5
             (TokenKind::Lt, "<"),
             (TokenKind::Geq, ">="),
             (TokenKind::Leq, "<="),
+            (TokenKind::Bool, "true"),
+            (TokenKind::Bool, "false"),
         ];
 
         for (i, (kind, value)) in expected.into_iter().enumerate() {
