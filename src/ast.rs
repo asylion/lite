@@ -16,6 +16,8 @@ pub enum Stmt {
     VarDecl(VarDecl),
     Assign(Assign),
     IfStmt(IfStmt),
+    WhileStmt(WhileStmt),
+    BreakStmt,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -96,4 +98,10 @@ pub struct IfStmt {
     pub cond: Expr,
     pub cons: Box<Stmt>,
     pub alt: Option<Box<Stmt>>,
+}
+
+#[derive(Debug)]
+pub struct WhileStmt {
+    pub cond: Expr,
+    pub body: Box<Stmt>,
 }

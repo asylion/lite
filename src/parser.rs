@@ -22,7 +22,6 @@ impl Parser {
 
     pub fn parse_program(&mut self) -> Stmt {
         let mut stmts = Vec::new();
-
         while self.current().kind != TokenKind::Eof {
             stmts.push(self.parse_stmt());
         }
@@ -48,6 +47,8 @@ impl Parser {
             TokenKind::LBrace => self.parse_block(),
             TokenKind::Var | TokenKind::Val => self.parse_var_decl(),
             TokenKind::If => self.parse_if_stmt(),
+            TokenKind::While => self.parse_while_stmt(),
+            TokenKind::Break => self.parse_break_stmt(),
             TokenKind::Ident => {
                 if self.peek().kind == TokenKind::Assign {
                     self.parse_assign()
@@ -102,6 +103,23 @@ impl Parser {
             cons: Box::new(cons),
             alt: alt,
         })
+    }
+
+    fn parse_while_stmt(&mut self) -> Stmt {
+        self.expect(TokenKind::While);
+
+        let cond = self.parse_expr();
+        let body = self.parse_block();
+
+        Stmt::WhileStmt(WhileStmt {
+            cond: cond,
+            body: Box::new(body),
+        })
+    }
+
+    fn parse_break_stmt(&mut self) -> Stmt {
+        self.expect(TokenKind::Break);
+        Stmt::BreakStmt
     }
 
     fn parse_assign(&mut self) -> Stmt {
@@ -342,17 +360,9 @@ mod tests {
         let input = "1";
         let program = parse_program(input);
 
-        let mut stmts = get_statements(program);
-
-        assert_eq!(
-            stmts.len(),
-            1,
-            "Expected {} statements, but got {}",
-            1,
-            stmts.len()
-        );
-
+        let mut stmts = get_statements(program, 1);
         let expr_stmt = get_expr_stmt(stmts.pop().unwrap());
+
         test_literal_number(expr_stmt.expr, 1)
     }
 
@@ -363,15 +373,7 @@ mod tests {
         for (input, op, val) in tests {
             let program = parse_program(input);
 
-            let mut stmts = get_statements(program);
-            assert_eq!(
-                stmts.len(),
-                1,
-                "Expected {} statements, but got {}",
-                1,
-                stmts.len()
-            );
-
+            let mut stmts = get_statements(program, 1);
             let expr_stmt = get_expr_stmt(stmts.pop().unwrap());
             let unary_expr = get_unary_expr(expr_stmt.expr);
 
@@ -401,15 +403,7 @@ mod tests {
         for (input, left_val, op, right_val) in tests {
             let program = parse_program(input);
 
-            let mut stmts = get_statements(program);
-            assert_eq!(
-                stmts.len(),
-                1,
-                "Expected {} statements, but got {}",
-                1,
-                stmts.len()
-            );
-
+            let mut stmts = get_statements(program, 1);
             let expr_stmt = get_expr_stmt(stmts.pop().unwrap());
             let binary_expr = get_binary_expr(expr_stmt.expr);
 
@@ -429,40 +423,37 @@ mod tests {
         let input = "if true { 1 } else { 2 }";
         let program = parse_program(input);
 
-        let mut stmts = get_statements(program);
-        assert_eq!(
-            stmts.len(),
-            1,
-            "Expected {} statements, but got {}",
-            1,
-            stmts.len()
-        );
-
+        let mut stmts = get_statements(program, 1);
         let if_stmt = get_if_stmt(stmts.pop().unwrap());
 
         test_literal_boolean(if_stmt.cond, true);
 
-        let mut cons_stmts = get_statements(*if_stmt.cons);
-        assert_eq!(
-            cons_stmts.len(),
-            1,
-            "Expected {} statements, but got {}",
-            1,
-            cons_stmts.len()
-        );
+        let mut cons_stmts = get_statements(*if_stmt.cons, 1);
         let cons_expr_stmt = get_expr_stmt(cons_stmts.pop().unwrap());
         test_literal_number(cons_expr_stmt.expr, 1);
 
-        let mut alt_stmts = get_statements(*if_stmt.alt.expect("Expected an else block"));
-        assert_eq!(
-            alt_stmts.len(),
-            1,
-            "Expected {} statements, but got {}",
-            1,
-            alt_stmts.len()
-        );
+        let mut alt_stmts = get_statements(*if_stmt.alt.expect("Expected an else block"), 1);
         let alt_expr_stmt = get_expr_stmt(alt_stmts.pop().unwrap());
         test_literal_number(alt_expr_stmt.expr, 2);
+    }
+
+    #[test]
+    fn test_parse_while_stmt() {
+        let input = "while true { 1 break }";
+        let program = parse_program(input);
+
+        let mut stmts = get_statements(program, 1);
+        let while_stmt = get_while_stmt(stmts.pop().unwrap());
+        test_literal_boolean(while_stmt.cond, true);
+
+        let mut body = get_statements(*while_stmt.body, 2);
+        match body.pop().unwrap() {
+            Stmt::BreakStmt => (),
+            _ => panic!("Expected a BreakStmt"),
+        }
+
+        let expr_stmt = get_expr_stmt(body.pop().unwrap());
+        test_literal_number(expr_stmt.expr, 1);
     }
 
     #[test]
@@ -470,15 +461,7 @@ mod tests {
         let input = "var x = 1";
         let program = parse_program(input);
 
-        let mut stmts = get_statements(program);
-        assert_eq!(
-            stmts.len(),
-            1,
-            "Expected {} statements, but got {}",
-            1,
-            stmts.len()
-        );
-
+        let mut stmts = get_statements(program, 1);
         let var_decl = get_var_decl(stmts.pop().unwrap());
 
         assert_eq!(var_decl.name, "x");
@@ -491,27 +474,29 @@ mod tests {
         let input = "x = 1";
         let program = parse_program(input);
 
-        let mut stmts = get_statements(program);
-        assert_eq!(
-            stmts.len(),
-            1,
-            "Expected {} statements, but got {}",
-            1,
-            stmts.len()
-        );
-
+        let mut stmts = get_statements(program, 1);
         let assign = get_assign(stmts.pop().unwrap());
 
         assert_eq!(assign.name, "x");
         test_literal_number(assign.expr, 1);
     }
 
-    fn get_statements(stmts: Stmt) -> Vec<Stmt> {
-        match stmts {
+    fn get_statements(stmts: Stmt, num: usize) -> Vec<Stmt> {
+        let result = match stmts {
             Stmt::Program(stmts) => stmts,
             Stmt::Block(stmts) => stmts,
             _ => panic!("Expected statements, but got {:?}", stmts),
-        }
+        };
+
+        assert_eq!(
+            result.len(),
+            num,
+            "Expected {} statements, but got {}",
+            num,
+            result.len()
+        );
+
+        result
     }
 
     fn get_expr_stmt(stmt: Stmt) -> ExprStmt {
@@ -525,6 +510,13 @@ mod tests {
         match stmt {
             Stmt::IfStmt(stmt) => stmt,
             _ => panic!("Expected an IfStmt, but got {:?}", stmt),
+        }
+    }
+
+    fn get_while_stmt(stmt: Stmt) -> WhileStmt {
+        match stmt {
+            Stmt::WhileStmt(stmt) => stmt,
+            _ => panic!("Expected a WhileStmt, but got {:?}", stmt),
         }
     }
 

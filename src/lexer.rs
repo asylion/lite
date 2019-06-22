@@ -214,6 +214,8 @@ val x = 5
 true false
 if else {
 }
+while
+break
 "#;
         let mut lexer = Lexer::new(input);
 
@@ -248,6 +250,8 @@ if else {
             (TokenKind::Else, "else"),
             (TokenKind::LBrace, "{"),
             (TokenKind::RBrace, "}"),
+            (TokenKind::While, "while"),
+            (TokenKind::Break, "break"),
         ];
 
         for (i, (kind, value)) in expected.into_iter().enumerate() {

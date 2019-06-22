@@ -38,6 +38,9 @@ pub enum TokenKind {
     If,
     Else,
 
+    While,
+    Break,
+
     Eof,
 }
 
@@ -71,6 +74,8 @@ pub fn identifier_kind(identifier: &str) -> TokenKind {
         "false" => TokenKind::False,
         "if" => TokenKind::If,
         "else" => TokenKind::Else,
+        "while" => TokenKind::While,
+        "break" => TokenKind::Break,
         _ => TokenKind::Ident,
     }
 }

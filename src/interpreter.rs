@@ -5,18 +5,20 @@ use crate::value::Value;
 pub struct Interpreter;
 
 impl Interpreter {
-    pub fn evaluate_stmt(&self, stmt: Stmt, env: &mut Environment) -> Value {
+    pub fn evaluate_stmt(&self, stmt: &Stmt, env: &mut Environment) -> Value {
         match stmt {
-            Stmt::Program(stmts) => self.evaluate_block(stmts, env),
-            Stmt::Block(stmts) => self.evaluate_block(stmts, env),
-            Stmt::ExprStmt(stmt) => self.evaluate_expr(stmt.expr, env),
-            Stmt::VarDecl(stmt) => self.evaluate_var_decl(stmt, env),
-            Stmt::Assign(stmt) => self.evaluate_assign(stmt, env),
-            Stmt::IfStmt(stmt) => self.evaluate_if_stmt(stmt, env),
+            Stmt::Program(stmts) => self.evaluate_block(&stmts, env),
+            Stmt::Block(stmts) => self.evaluate_block(&stmts, env),
+            Stmt::ExprStmt(stmt) => self.evaluate_expr(&stmt.expr, env),
+            Stmt::VarDecl(stmt) => self.evaluate_var_decl(&stmt, env),
+            Stmt::Assign(stmt) => self.evaluate_assign(&stmt, env),
+            Stmt::IfStmt(stmt) => self.evaluate_if_stmt(&stmt, env),
+            Stmt::WhileStmt(stmt) => self.evaluate_while_stmt(&stmt, env),
+            _ => unimplemented!(),
         }
     }
 
-    fn evaluate_block(&self, stmts: Vec<Stmt>, env: &mut Environment) -> Value {
+    fn evaluate_block(&self, stmts: &Vec<Stmt>, env: &mut Environment) -> Value {
         let mut val = Value::Void;
 
         for stmt in stmts {
@@ -26,55 +28,66 @@ impl Interpreter {
         val
     }
 
-    fn evaluate_var_decl(&self, decl: VarDecl, env: &mut Environment) -> Value {
+    fn evaluate_var_decl(&self, decl: &VarDecl, env: &mut Environment) -> Value {
         let value = match decl.initializer {
-            Some(expr) => self.evaluate_expr(expr, env),
+            Some(ref expr) => self.evaluate_expr(expr, env),
             None => Value::Void,
         };
 
-        env.put(decl.name, value.clone());
+        env.put(decl.name.clone(), value.clone());
 
         value
     }
 
-    fn evaluate_assign(&self, assign: Assign, env: &mut Environment) -> Value {
-        let value = self.evaluate_expr(assign.expr, env);
+    fn evaluate_assign(&self, assign: &Assign, env: &mut Environment) -> Value {
+        let value = self.evaluate_expr(&assign.expr, env);
 
-        env.put(assign.name, value.clone());
+        env.put(assign.name.clone(), value.clone());
 
         value
     }
 
-    fn evaluate_if_stmt(&self, if_stmt: IfStmt, env: &mut Environment) -> Value {
-        let cond = self.evaluate_expr(if_stmt.cond, env);
+    fn evaluate_if_stmt(&self, if_stmt: &IfStmt, env: &mut Environment) -> Value {
+        let cond = self.evaluate_expr(&if_stmt.cond, env);
         if let Value::Bool(true) = cond {
-            self.evaluate_stmt(*if_stmt.cons, env);
+            self.evaluate_stmt(&*if_stmt.cons, env);
         } else {
-            if let Some(alt) = if_stmt.alt {
-                self.evaluate_stmt(*alt, env);
+            if let Some(ref alt) = if_stmt.alt {
+                self.evaluate_stmt(&*alt, env);
             }
         }
 
         Value::Void
     }
 
-    fn evaluate_expr(&self, expr: Expr, env: &mut Environment) -> Value {
+    fn evaluate_while_stmt(&self, while_stmt: &WhileStmt, env: &mut Environment) -> Value {
+        let mut cond = self.evaluate_expr(&while_stmt.cond, env);
+
+        while let Value::Bool(true) = cond {
+            self.evaluate_stmt(&*while_stmt.body, env);
+            cond = self.evaluate_expr(&while_stmt.cond, env);
+        }
+
+        Value::Void
+    }
+
+    fn evaluate_expr(&self, expr: &Expr, env: &mut Environment) -> Value {
         match expr {
             Expr::LiteralBoolean(expr) => Value::Bool(expr.value),
             Expr::LiteralNumber(expr) => Value::Number(expr.value),
-            Expr::LiteralString(expr) => Value::Str(expr.value),
+            Expr::LiteralString(expr) => Value::Str(expr.value.to_string()),
             Expr::Identifier(expr) => match env.get(&expr.name) {
                 Some(value) => value.clone(),
                 None => panic!("Undeclared identifier {}", expr.name),
             },
-            Expr::UnaryExpr(expr) => self.evaluate_unary_expr(expr.op, *expr.expr, env),
+            Expr::UnaryExpr(expr) => self.evaluate_unary_expr(&expr.op, &*expr.expr, env),
             Expr::BinaryExpr(expr) => {
-                self.evaluate_binary_expr(*expr.left, expr.op, *expr.right, env)
+                self.evaluate_binary_expr(&*expr.left, &expr.op, &*expr.right, env)
             }
         }
     }
 
-    fn evaluate_unary_expr(&self, op: UnaryOp, expr: Expr, env: &mut Environment) -> Value {
+    fn evaluate_unary_expr(&self, op: &UnaryOp, expr: &Expr, env: &mut Environment) -> Value {
         let value = self.evaluate_expr(expr, env);
         match value {
             Value::Bool(val) => self.evaluate_boolean_unary_expr(op, val),
@@ -83,14 +96,14 @@ impl Interpreter {
         }
     }
 
-    fn evaluate_boolean_unary_expr(&self, op: UnaryOp, value: bool) -> Value {
+    fn evaluate_boolean_unary_expr(&self, op: &UnaryOp, value: bool) -> Value {
         match op {
             UnaryOp::Not => Value::Bool(!value),
             UnaryOp::Minus => panic!("Operator {:?} not supported for booleans", op),
         }
     }
 
-    fn evaluate_numeric_unary_expr(&self, op: UnaryOp, value: i64) -> Value {
+    fn evaluate_numeric_unary_expr(&self, op: &UnaryOp, value: i64) -> Value {
         match op {
             UnaryOp::Not => panic!("Operator {:?} not supported for numbers", op),
             UnaryOp::Minus => Value::Number(-value),
@@ -99,9 +112,9 @@ impl Interpreter {
 
     fn evaluate_binary_expr(
         &self,
-        left: Expr,
-        op: BinaryOp,
-        right: Expr,
+        left: &Expr,
+        op: &BinaryOp,
+        right: &Expr,
         env: &mut Environment,
     ) -> Value {
         let left = self.evaluate_expr(left, env);
@@ -121,7 +134,7 @@ impl Interpreter {
         }
     }
 
-    fn evaluate_numeric_binary_expr(&self, left: i64, op: BinaryOp, right: i64) -> Value {
+    fn evaluate_numeric_binary_expr(&self, left: i64, op: &BinaryOp, right: i64) -> Value {
         match op {
             BinaryOp::Plus => Value::Number(left + right),
             BinaryOp::Minus => Value::Number(left - right),
@@ -137,7 +150,7 @@ impl Interpreter {
         }
     }
 
-    fn evaluate_boolean_binary_expr(&self, left: bool, op: BinaryOp, right: bool) -> Value {
+    fn evaluate_boolean_binary_expr(&self, left: bool, op: &BinaryOp, right: bool) -> Value {
         match op {
             BinaryOp::And => Value::Bool(left && right),
             BinaryOp::Or => Value::Bool(left || right),
@@ -296,6 +309,26 @@ x
         );
     }
 
+    #[test]
+    fn test_while_stmt() {
+        let input = "
+var x = 5
+while x < 1000 {
+  x = x + 1
+}
+x
+";
+        let expected = 1000;
+
+        let value = evaluate_input(input);
+        assert!(
+            num_value_match(&value, expected),
+            "value: {:?} expected: {:?}",
+            value,
+            expected
+        );
+    }
+
     fn str_value_match(value: &Value, expected: &str) -> bool {
         match value {
             Value::Str(value) => value == expected,
@@ -323,6 +356,6 @@ x
         let program = parser.parse_program();
         let interpreter = Interpreter;
         let mut env = Environment::new();
-        interpreter.evaluate_stmt(program, &mut env)
+        interpreter.evaluate_stmt(&program, &mut env)
     }
 }

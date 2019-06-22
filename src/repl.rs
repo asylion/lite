@@ -23,7 +23,7 @@ pub fn start() {
             let mut parser = Parser::new(lexer);
             let interpreter = Interpreter;
 
-            let value = interpreter.evaluate_stmt(parser.parse_program(), &mut env);
+            let value = interpreter.evaluate_stmt(&parser.parse_program(), &mut env);
 
             match value {
                 Value::Void => (),
