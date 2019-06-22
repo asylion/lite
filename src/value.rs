@@ -5,6 +5,7 @@ pub enum Value {
     Number(i64),
     Str(String),
     Bool(bool),
+    Break,
     Void,
 }
 
@@ -14,7 +15,7 @@ impl fmt::Display for Value {
             Value::Number(value) => write!(f, "{}", value),
             Value::Str(value) => write!(f, "{}", value),
             Value::Bool(value) => write!(f, "{}", value),
-            Value::Void => write!(f, ""),
+            _ => write!(f, ""),
         }
     }
 }

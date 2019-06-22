@@ -7,15 +7,28 @@ pub struct Interpreter;
 impl Interpreter {
     pub fn evaluate_stmt(&self, stmt: &Stmt, env: &mut Environment) -> Value {
         match stmt {
-            Stmt::Program(stmts) => self.evaluate_block(&stmts, env),
+            Stmt::Program(stmts) => self.evaluate_program(&stmts, env),
             Stmt::Block(stmts) => self.evaluate_block(&stmts, env),
             Stmt::ExprStmt(stmt) => self.evaluate_expr(&stmt.expr, env),
             Stmt::VarDecl(stmt) => self.evaluate_var_decl(&stmt, env),
             Stmt::Assign(stmt) => self.evaluate_assign(&stmt, env),
             Stmt::IfStmt(stmt) => self.evaluate_if_stmt(&stmt, env),
             Stmt::WhileStmt(stmt) => self.evaluate_while_stmt(&stmt, env),
-            _ => unimplemented!(),
+            Stmt::BreakStmt => Value::Break,
         }
+    }
+
+    fn evaluate_program(&self, stmts: &Vec<Stmt>, env: &mut Environment) -> Value {
+        let mut val = Value::Void;
+
+        for stmt in stmts {
+            val = self.evaluate_stmt(stmt, env);
+            if let Value::Break = val {
+                panic!("Break found outside of a loop");
+            }
+        }
+
+        val
     }
 
     fn evaluate_block(&self, stmts: &Vec<Stmt>, env: &mut Environment) -> Value {
@@ -50,10 +63,10 @@ impl Interpreter {
     fn evaluate_if_stmt(&self, if_stmt: &IfStmt, env: &mut Environment) -> Value {
         let cond = self.evaluate_expr(&if_stmt.cond, env);
         if let Value::Bool(true) = cond {
-            self.evaluate_stmt(&*if_stmt.cons, env);
+            return self.evaluate_stmt(&*if_stmt.cons, env);
         } else {
             if let Some(ref alt) = if_stmt.alt {
-                self.evaluate_stmt(&*alt, env);
+                return self.evaluate_stmt(&*alt, env);
             }
         }
 
@@ -64,7 +77,9 @@ impl Interpreter {
         let mut cond = self.evaluate_expr(&while_stmt.cond, env);
 
         while let Value::Bool(true) = cond {
-            self.evaluate_stmt(&*while_stmt.body, env);
+            if let Value::Break = self.evaluate_stmt(&*while_stmt.body, env) {
+                break;
+            }
             cond = self.evaluate_expr(&while_stmt.cond, env);
         }
 
@@ -315,10 +330,13 @@ x
 var x = 5
 while x < 1000 {
   x = x + 1
+  if x >= 500 {
+    break
+  }
 }
 x
 ";
-        let expected = 1000;
+        let expected = 500;
 
         let value = evaluate_input(input);
         assert!(
