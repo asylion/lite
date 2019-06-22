@@ -45,7 +45,7 @@ impl Parser {
     fn parse_stmt(&mut self) -> Stmt {
         match self.current().kind {
             TokenKind::LBrace => self.parse_block(),
-            TokenKind::Var | TokenKind::Val => self.parse_var_decl(),
+            TokenKind::Var => self.parse_var_decl(),
             TokenKind::If => self.parse_if_stmt(),
             TokenKind::While => self.parse_while_stmt(),
             TokenKind::Break => self.parse_break_stmt(),
@@ -61,15 +61,10 @@ impl Parser {
     }
 
     fn parse_var_decl(&mut self) -> Stmt {
-        let is_constant = self.current().kind == TokenKind::Val;
-        self.consume();
+        self.expect(TokenKind::Var);
 
         let name = self.current().value.clone();
         self.expect(TokenKind::Ident);
-
-        if is_constant && self.current().kind != TokenKind::Assign {
-            panic!("Unassigned val {}", name);
-        }
 
         let initializer = match self.current().kind {
             TokenKind::Assign => {
@@ -82,7 +77,6 @@ impl Parser {
         Stmt::VarDecl(VarDecl {
             name: name,
             initializer: initializer,
-            is_constant: is_constant,
         })
     }
 
@@ -465,7 +459,6 @@ mod tests {
         let var_decl = get_var_decl(stmts.pop().unwrap());
 
         assert_eq!(var_decl.name, "x");
-        assert_eq!(var_decl.is_constant, false, "Expected non constant");
         test_literal_number(var_decl.initializer.expect("Missing initializer"), 1);
     }
 

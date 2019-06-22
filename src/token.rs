@@ -30,7 +30,6 @@ pub enum TokenKind {
     Assign,
 
     Var,
-    Val,
 
     True,
     False,
@@ -69,7 +68,6 @@ impl Token {
 pub fn identifier_kind(identifier: &str) -> TokenKind {
     match identifier {
         "var" => TokenKind::Var,
-        "val" => TokenKind::Val,
         "true" => TokenKind::True,
         "false" => TokenKind::False,
         "if" => TokenKind::If,

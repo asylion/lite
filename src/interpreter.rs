@@ -49,7 +49,7 @@ impl Interpreter {
 
         env.put(decl.name.clone(), value.clone());
 
-        value
+        Value::Void
     }
 
     fn evaluate_assign(&self, assign: &Assign, env: &mut Environment) -> Value {
@@ -57,7 +57,7 @@ impl Interpreter {
 
         env.put(assign.name.clone(), value.clone());
 
-        value
+        Value::Void
     }
 
     fn evaluate_if_stmt(&self, if_stmt: &IfStmt, env: &mut Environment) -> Value {
@@ -201,6 +201,7 @@ mod tests {
         let input = r#"
 var x = 5
 x = x + 1
+x
 "#;
         let expected = 6;
 

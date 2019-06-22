@@ -84,7 +84,6 @@ pub struct ExprStmt {
 pub struct VarDecl {
     pub name: String,
     pub initializer: Option<Expr>,
-    pub is_constant: bool,
 }
 
 #[derive(Debug)]

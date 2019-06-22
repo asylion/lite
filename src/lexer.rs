@@ -208,8 +208,7 @@ mod tests {
 123 + 4
 ()
 "hello"
-var
-val x = 5
+var x = 5
 && || ! == != >< >= <=
 true false
 if else {
@@ -231,7 +230,6 @@ break
             (TokenKind::RParen, ")"),
             (TokenKind::Str, "hello"),
             (TokenKind::Var, "var"),
-            (TokenKind::Val, "val"),
             (TokenKind::Ident, "x"),
             (TokenKind::Assign, "="),
             (TokenKind::Number, "5"),
