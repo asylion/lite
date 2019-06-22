@@ -30,9 +30,24 @@ impl Parser {
         Stmt::Program(stmts)
     }
 
+    pub fn parse_block(&mut self) -> Stmt {
+        self.expect(TokenKind::LBrace);
+
+        let mut stmts = Vec::new();
+
+        while self.current().kind != TokenKind::RBrace {
+            stmts.push(self.parse_stmt());
+        }
+        self.expect(TokenKind::RBrace);
+
+        Stmt::Block(stmts)
+    }
+
     fn parse_stmt(&mut self) -> Stmt {
         match self.current().kind {
+            TokenKind::LBrace => self.parse_block(),
             TokenKind::Var | TokenKind::Val => self.parse_var_decl(),
+            TokenKind::If => self.parse_if_stmt(),
             TokenKind::Ident => {
                 if self.peek().kind == TokenKind::Assign {
                     self.parse_assign()
@@ -67,6 +82,25 @@ impl Parser {
             name: name,
             initializer: initializer,
             is_constant: is_constant,
+        })
+    }
+
+    fn parse_if_stmt(&mut self) -> Stmt {
+        self.expect(TokenKind::If);
+        let cond = self.parse_expr();
+
+        let cons = self.parse_block();
+
+        let mut alt = None;
+        if self.current().kind == TokenKind::Else {
+            self.consume();
+            alt = Some(Box::new(self.parse_block()));
+        }
+
+        Stmt::IfStmt(IfStmt {
+            cond: cond,
+            cons: Box::new(cons),
+            alt: alt,
         })
     }
 
@@ -223,7 +257,7 @@ impl Parser {
 
     fn parse_term(&mut self) -> Expr {
         match self.current().kind {
-            TokenKind::Bool => self.parse_literal_boolean(),
+            TokenKind::True | TokenKind::False => self.parse_literal_boolean(),
             TokenKind::Number => self.parse_literal_number(),
             TokenKind::Str => self.parse_literal_string(),
             TokenKind::Ident => self.parse_identifier(),
@@ -238,8 +272,8 @@ impl Parser {
     }
 
     fn parse_literal_boolean(&mut self) -> Expr {
-        let value = self.current().value == "true";
-        self.expect(TokenKind::Bool);
+        let value = self.current().kind == TokenKind::True;
+        self.expect_any(vec![TokenKind::True, TokenKind::False]);
         Expr::LiteralBoolean(LiteralBoolean { value: value })
     }
 
@@ -282,6 +316,21 @@ impl Parser {
         }
         self.consume();
     }
+
+    fn expect_any(&mut self, expected: Vec<TokenKind>) {
+        for token in &expected {
+            if *token == self.current().kind {
+                self.consume();
+                return;
+            }
+        }
+
+        panic!(
+            "Expected one of {:?} but got {:?}",
+            expected,
+            self.current().kind
+        );
+    }
 }
 
 #[cfg(test)]
@@ -295,9 +344,13 @@ mod tests {
 
         let mut stmts = get_statements(program);
 
-        if stmts.len() != 1 {
-            panic!("Expected {} statements, but got {}", 1, stmts.len());
-        }
+        assert_eq!(
+            stmts.len(),
+            1,
+            "Expected {} statements, but got {}",
+            1,
+            stmts.len()
+        );
 
         let expr_stmt = get_expr_stmt(stmts.pop().unwrap());
         test_literal_number(expr_stmt.expr, 1)
@@ -311,10 +364,13 @@ mod tests {
             let program = parse_program(input);
 
             let mut stmts = get_statements(program);
-
-            if stmts.len() != 1 {
-                panic!("Expected {} statements, but got {}", 1, stmts.len());
-            }
+            assert_eq!(
+                stmts.len(),
+                1,
+                "Expected {} statements, but got {}",
+                1,
+                stmts.len()
+            );
 
             let expr_stmt = get_expr_stmt(stmts.pop().unwrap());
             let unary_expr = get_unary_expr(expr_stmt.expr);
@@ -346,10 +402,13 @@ mod tests {
             let program = parse_program(input);
 
             let mut stmts = get_statements(program);
-
-            if stmts.len() != 1 {
-                panic!("Expected {} statements, but got {}", 1, stmts.len());
-            }
+            assert_eq!(
+                stmts.len(),
+                1,
+                "Expected {} statements, but got {}",
+                1,
+                stmts.len()
+            );
 
             let expr_stmt = get_expr_stmt(stmts.pop().unwrap());
             let binary_expr = get_binary_expr(expr_stmt.expr);
@@ -366,15 +425,59 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_if_stmt() {
+        let input = "if true { 1 } else { 2 }";
+        let program = parse_program(input);
+
+        let mut stmts = get_statements(program);
+        assert_eq!(
+            stmts.len(),
+            1,
+            "Expected {} statements, but got {}",
+            1,
+            stmts.len()
+        );
+
+        let if_stmt = get_if_stmt(stmts.pop().unwrap());
+
+        test_literal_boolean(if_stmt.cond, true);
+
+        let mut cons_stmts = get_statements(*if_stmt.cons);
+        assert_eq!(
+            cons_stmts.len(),
+            1,
+            "Expected {} statements, but got {}",
+            1,
+            cons_stmts.len()
+        );
+        let cons_expr_stmt = get_expr_stmt(cons_stmts.pop().unwrap());
+        test_literal_number(cons_expr_stmt.expr, 1);
+
+        let mut alt_stmts = get_statements(*if_stmt.alt.expect("Expected an else block"));
+        assert_eq!(
+            alt_stmts.len(),
+            1,
+            "Expected {} statements, but got {}",
+            1,
+            alt_stmts.len()
+        );
+        let alt_expr_stmt = get_expr_stmt(alt_stmts.pop().unwrap());
+        test_literal_number(alt_expr_stmt.expr, 2);
+    }
+
+    #[test]
     fn test_parse_var_decl() {
         let input = "var x = 1";
         let program = parse_program(input);
 
         let mut stmts = get_statements(program);
-
-        if stmts.len() != 1 {
-            panic!("Expected {} statements, but got {}", 1, stmts.len());
-        }
+        assert_eq!(
+            stmts.len(),
+            1,
+            "Expected {} statements, but got {}",
+            1,
+            stmts.len()
+        );
 
         let var_decl = get_var_decl(stmts.pop().unwrap());
 
@@ -389,10 +492,13 @@ mod tests {
         let program = parse_program(input);
 
         let mut stmts = get_statements(program);
-
-        if stmts.len() != 1 {
-            panic!("Expected {} statements, but got {}", 1, stmts.len());
-        }
+        assert_eq!(
+            stmts.len(),
+            1,
+            "Expected {} statements, but got {}",
+            1,
+            stmts.len()
+        );
 
         let assign = get_assign(stmts.pop().unwrap());
 
@@ -400,10 +506,11 @@ mod tests {
         test_literal_number(assign.expr, 1);
     }
 
-    fn get_statements(program: Stmt) -> Vec<Stmt> {
-        match program {
+    fn get_statements(stmts: Stmt) -> Vec<Stmt> {
+        match stmts {
             Stmt::Program(stmts) => stmts,
-            _ => panic!("Expected a Program, but got {:?}", program),
+            Stmt::Block(stmts) => stmts,
+            _ => panic!("Expected statements, but got {:?}", stmts),
         }
     }
 
@@ -411,6 +518,13 @@ mod tests {
         match stmt {
             Stmt::ExprStmt(stmt) => stmt,
             _ => panic!("Expected an ExprStmt, but got {:?}", stmt),
+        }
+    }
+
+    fn get_if_stmt(stmt: Stmt) -> IfStmt {
+        match stmt {
+            Stmt::IfStmt(stmt) => stmt,
+            _ => panic!("Expected an IfStmt, but got {:?}", stmt),
         }
     }
 
@@ -450,6 +564,17 @@ mod tests {
                 }
             }
             _ => panic!("Expected a LiteralNumber, but got {:?}", expr),
+        }
+    }
+
+    fn test_literal_boolean(expr: Expr, value: bool) {
+        match expr {
+            Expr::LiteralBoolean(boolean) => {
+                if boolean.value != value {
+                    panic!("Expected {}, but got {}", value, boolean.value);
+                }
+            }
+            _ => panic!("Expected a LiteralBoolean, but got {:?}", expr),
         }
     }
 

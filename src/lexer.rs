@@ -27,6 +27,8 @@ impl Lexer {
                 '/' => Token::from_char(TokenKind::Divide, ch),
                 '(' => Token::from_char(TokenKind::LParen, ch),
                 ')' => Token::from_char(TokenKind::RParen, ch),
+                '{' => Token::from_char(TokenKind::LBrace, ch),
+                '}' => Token::from_char(TokenKind::RBrace, ch),
                 '=' => {
                     return self.single_or_double_char_token(
                         '=',
@@ -210,6 +212,8 @@ var
 val x = 5
 && || ! == != >< >= <=
 true false
+if else {
+}
 "#;
         let mut lexer = Lexer::new(input);
 
@@ -238,8 +242,12 @@ true false
             (TokenKind::Lt, "<"),
             (TokenKind::Geq, ">="),
             (TokenKind::Leq, "<="),
-            (TokenKind::Bool, "true"),
-            (TokenKind::Bool, "false"),
+            (TokenKind::True, "true"),
+            (TokenKind::False, "false"),
+            (TokenKind::If, "if"),
+            (TokenKind::Else, "else"),
+            (TokenKind::LBrace, "{"),
+            (TokenKind::RBrace, "}"),
         ];
 
         for (i, (kind, value)) in expected.into_iter().enumerate() {

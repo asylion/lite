@@ -15,6 +15,7 @@ pub enum Stmt {
     ExprStmt(ExprStmt),
     VarDecl(VarDecl),
     Assign(Assign),
+    IfStmt(IfStmt),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -88,4 +89,11 @@ pub struct VarDecl {
 pub struct Assign {
     pub name: String,
     pub expr: Expr,
+}
+
+#[derive(Debug)]
+pub struct IfStmt {
+    pub cond: Expr,
+    pub cons: Box<Stmt>,
+    pub alt: Option<Box<Stmt>>,
 }

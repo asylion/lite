@@ -12,6 +12,7 @@ impl Interpreter {
             Stmt::ExprStmt(stmt) => self.evaluate_expr(stmt.expr, env),
             Stmt::VarDecl(stmt) => self.evaluate_var_decl(stmt, env),
             Stmt::Assign(stmt) => self.evaluate_assign(stmt, env),
+            Stmt::IfStmt(stmt) => self.evaluate_if_stmt(stmt, env),
         }
     }
 
@@ -42,6 +43,19 @@ impl Interpreter {
         env.put(assign.name, value.clone());
 
         value
+    }
+
+    fn evaluate_if_stmt(&self, if_stmt: IfStmt, env: &mut Environment) -> Value {
+        let cond = self.evaluate_expr(if_stmt.cond, env);
+        if let Value::Bool(true) = cond {
+            self.evaluate_stmt(*if_stmt.cons, env);
+        } else {
+            if let Some(alt) = if_stmt.alt {
+                self.evaluate_stmt(*alt, env);
+            }
+        }
+
+        Value::Void
     }
 
     fn evaluate_expr(&self, expr: Expr, env: &mut Environment) -> Value {
@@ -258,6 +272,28 @@ x = x + 1
                 expected
             );
         }
+    }
+
+    #[test]
+    fn test_if_stmt() {
+        let input = "
+var x = 5
+if 2 > 1 {
+  x = x + 5
+} else {
+  x = 0
+}
+x
+";
+        let expected = 10;
+
+        let value = evaluate_input(input);
+        assert!(
+            num_value_match(&value, expected),
+            "value: {:?} expected: {:?}",
+            value,
+            expected
+        );
     }
 
     fn str_value_match(value: &Value, expected: &str) -> bool {

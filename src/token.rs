@@ -24,12 +24,19 @@ pub enum TokenKind {
     LParen,
     RParen,
 
+    LBrace,
+    RBrace,
+
     Assign,
 
     Var,
     Val,
 
-    Bool,
+    True,
+    False,
+
+    If,
+    Else,
 
     Eof,
 }
@@ -60,7 +67,10 @@ pub fn identifier_kind(identifier: &str) -> TokenKind {
     match identifier {
         "var" => TokenKind::Var,
         "val" => TokenKind::Val,
-        "true" | "false" => TokenKind::Bool,
+        "true" => TokenKind::True,
+        "false" => TokenKind::False,
+        "if" => TokenKind::If,
+        "else" => TokenKind::Else,
         _ => TokenKind::Ident,
     }
 }

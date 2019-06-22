@@ -5,6 +5,7 @@ use crate::environment::Environment;
 use crate::interpreter::Interpreter;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
+use crate::value::Value;
 
 pub fn start() {
     println!("Welcome to the lite repl!");
@@ -24,7 +25,10 @@ pub fn start() {
 
             let value = interpreter.evaluate_stmt(parser.parse_program(), &mut env);
 
-            println!("{}", value);
+            match value {
+                Value::Void => (),
+                _ => println!("{}", value),
+            }
         }));
     }
 }
