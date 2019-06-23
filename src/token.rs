@@ -40,6 +40,10 @@ pub enum TokenKind {
     While,
     Break,
 
+    Def,
+
+    Comma,
+
     Eof,
 }
 
@@ -74,6 +78,7 @@ pub fn identifier_kind(identifier: &str) -> TokenKind {
         "else" => TokenKind::Else,
         "while" => TokenKind::While,
         "break" => TokenKind::Break,
+        "def" => TokenKind::Def,
         _ => TokenKind::Ident,
     }
 }

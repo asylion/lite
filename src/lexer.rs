@@ -29,6 +29,7 @@ impl Lexer {
                 ')' => Token::from_char(TokenKind::RParen, ch),
                 '{' => Token::from_char(TokenKind::LBrace, ch),
                 '}' => Token::from_char(TokenKind::RBrace, ch),
+                ',' => Token::from_char(TokenKind::Comma, ch),
                 '=' => {
                     return self.single_or_double_char_token(
                         '=',
@@ -215,6 +216,7 @@ if else {
 }
 while
 break
+def ,
 "#;
         let mut lexer = Lexer::new(input);
 
@@ -250,6 +252,8 @@ break
             (TokenKind::RBrace, "}"),
             (TokenKind::While, "while"),
             (TokenKind::Break, "break"),
+            (TokenKind::Def, "def"),
+            (TokenKind::Comma, ","),
         ];
 
         for (i, (kind, value)) in expected.into_iter().enumerate() {
