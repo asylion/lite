@@ -9,7 +9,7 @@ pub struct Lexer {
 }
 
 impl Lexer {
-    pub fn new<T: Into<Vec<u8>>>(input: T) -> Lexer {
+    pub fn new<T: Into<Vec<u8>>>(input: T) -> Self {
         Lexer {
             input: input.into(),
             position: 0,

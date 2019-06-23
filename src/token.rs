@@ -50,14 +50,14 @@ pub struct Token {
 }
 
 impl Token {
-    pub fn from_string<T: Into<String>>(kind: TokenKind, value: T) -> Token {
+    pub fn from_string<T: Into<String>>(kind: TokenKind, value: T) -> Self {
         Token {
             kind: kind,
             value: value.into(),
         }
     }
 
-    pub fn from_char(kind: TokenKind, value: char) -> Token {
+    pub fn from_char(kind: TokenKind, value: char) -> Self {
         Token {
             kind: kind,
             value: value.to_string(),

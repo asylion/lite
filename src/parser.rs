@@ -9,7 +9,7 @@ pub struct Parser {
 }
 
 impl Parser {
-    pub fn new(mut lexer: Lexer) -> Parser {
+    pub fn new(mut lexer: Lexer) -> Self {
         let current_token = lexer.next_token();
         let next_token = lexer.next_token();
 
