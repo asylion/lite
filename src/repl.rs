@@ -1,7 +1,6 @@
 use std::io::{self, Write};
 use std::panic::{self, AssertUnwindSafe};
 
-use crate::environment::Environment;
 use crate::interpreter::Interpreter;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
@@ -10,7 +9,7 @@ use crate::value::Value;
 pub fn start() {
     println!("Welcome to the lite repl!");
 
-    let mut env = Environment::new();
+    let mut interpreter = Interpreter::new();
     loop {
         print!(">>> ");
         io::stdout().flush().unwrap();
@@ -21,9 +20,8 @@ pub fn start() {
         let _ = panic::catch_unwind(AssertUnwindSafe(|| {
             let lexer = Lexer::new(input);
             let mut parser = Parser::new(lexer);
-            let interpreter = Interpreter;
 
-            let value = interpreter.evaluate_stmt(&parser.parse_program(), &mut env);
+            let value = interpreter.evaluate_stmt(&parser.parse_program());
 
             match value {
                 Value::Void => (),

@@ -2,27 +2,35 @@ use crate::ast::*;
 use crate::environment::Environment;
 use crate::value::Value;
 
-pub struct Interpreter;
+pub struct Interpreter {
+    env: Environment,
+}
 
 impl Interpreter {
-    pub fn evaluate_stmt(&self, stmt: &Stmt, env: &mut Environment) -> Value {
+    pub fn new() -> Self {
+        Interpreter {
+            env: Environment::new(),
+        }
+    }
+
+    pub fn evaluate_stmt(&mut self, stmt: &Stmt) -> Value {
         match stmt {
-            Stmt::Program(stmts) => self.evaluate_program(&stmts, env),
-            Stmt::Block(stmts) => self.evaluate_block(&stmts, env),
-            Stmt::ExprStmt(stmt) => self.evaluate_expr(&stmt.expr, env),
-            Stmt::VarDecl(stmt) => self.evaluate_var_decl(&stmt, env),
-            Stmt::Assign(stmt) => self.evaluate_assign(&stmt, env),
-            Stmt::IfStmt(stmt) => self.evaluate_if_stmt(&stmt, env),
-            Stmt::WhileStmt(stmt) => self.evaluate_while_stmt(&stmt, env),
+            Stmt::Program(stmts) => self.evaluate_program(&stmts),
+            Stmt::Block(stmts) => self.evaluate_block(&stmts),
+            Stmt::ExprStmt(stmt) => self.evaluate_expr(&stmt.expr),
+            Stmt::VarDecl(stmt) => self.evaluate_var_decl(&stmt),
+            Stmt::Assign(stmt) => self.evaluate_assign(&stmt),
+            Stmt::IfStmt(stmt) => self.evaluate_if_stmt(&stmt),
+            Stmt::WhileStmt(stmt) => self.evaluate_while_stmt(&stmt),
             Stmt::BreakStmt => Value::Break,
         }
     }
 
-    fn evaluate_program(&self, stmts: &Vec<Stmt>, env: &mut Environment) -> Value {
+    fn evaluate_program(&mut self, stmts: &Vec<Stmt>) -> Value {
         let mut val = Value::Void;
 
         for stmt in stmts {
-            val = self.evaluate_stmt(stmt, env);
+            val = self.evaluate_stmt(stmt);
             if let Value::Break = val {
                 panic!("Break found outside of a loop");
             }
@@ -31,79 +39,83 @@ impl Interpreter {
         val
     }
 
-    fn evaluate_block(&self, stmts: &Vec<Stmt>, env: &mut Environment) -> Value {
+    fn evaluate_block(&mut self, stmts: &Vec<Stmt>) -> Value {
         let mut val = Value::Void;
 
+        self.enter_scope();
         for stmt in stmts {
-            val = self.evaluate_stmt(stmt, env);
+            val = self.evaluate_stmt(stmt);
         }
+        self.exit_scope();
 
         val
     }
 
-    fn evaluate_var_decl(&self, decl: &VarDecl, env: &mut Environment) -> Value {
+    fn evaluate_var_decl(&mut self, decl: &VarDecl) -> Value {
         let value = match decl.initializer {
-            Some(ref expr) => self.evaluate_expr(expr, env),
+            Some(ref expr) => self.evaluate_expr(expr),
             None => Value::Void,
         };
 
-        env.put(decl.name.clone(), value.clone());
+        self.env.declare(decl.name.clone(), value.clone());
 
         Value::Void
     }
 
-    fn evaluate_assign(&self, assign: &Assign, env: &mut Environment) -> Value {
-        let value = self.evaluate_expr(&assign.expr, env);
+    fn evaluate_assign(&mut self, assign: &Assign) -> Value {
+        let value = self.evaluate_expr(&assign.expr);
 
-        env.put(assign.name.clone(), value.clone());
+        if !self.env.update(assign.name.clone(), value.clone()) {
+            panic!("Undeclared variable: {}", assign.name);
+        }
 
         Value::Void
     }
 
-    fn evaluate_if_stmt(&self, if_stmt: &IfStmt, env: &mut Environment) -> Value {
-        let cond = self.evaluate_expr(&if_stmt.cond, env);
+    fn evaluate_if_stmt(&mut self, if_stmt: &IfStmt) -> Value {
+        let cond = self.evaluate_expr(&if_stmt.cond);
         if let Value::Bool(true) = cond {
-            return self.evaluate_stmt(&*if_stmt.cons, env);
+            return self.evaluate_stmt(&*if_stmt.cons);
         } else {
             if let Some(ref alt) = if_stmt.alt {
-                return self.evaluate_stmt(&*alt, env);
+                return self.evaluate_stmt(&*alt);
             }
         }
 
         Value::Void
     }
 
-    fn evaluate_while_stmt(&self, while_stmt: &WhileStmt, env: &mut Environment) -> Value {
-        let mut cond = self.evaluate_expr(&while_stmt.cond, env);
+    fn evaluate_while_stmt(&mut self, while_stmt: &WhileStmt) -> Value {
+        let mut cond = self.evaluate_expr(&while_stmt.cond);
 
         while let Value::Bool(true) = cond {
-            if let Value::Break = self.evaluate_stmt(&*while_stmt.body, env) {
+            if let Value::Break = self.evaluate_stmt(&*while_stmt.body) {
                 break;
             }
-            cond = self.evaluate_expr(&while_stmt.cond, env);
+            cond = self.evaluate_expr(&while_stmt.cond);
         }
 
         Value::Void
     }
 
-    fn evaluate_expr(&self, expr: &Expr, env: &mut Environment) -> Value {
+    fn evaluate_expr(&mut self, expr: &Expr) -> Value {
         match expr {
             Expr::LiteralBoolean(expr) => Value::Bool(expr.value),
             Expr::LiteralNumber(expr) => Value::Number(expr.value),
             Expr::LiteralString(expr) => Value::Str(expr.value.to_string()),
-            Expr::Identifier(expr) => match env.get(&expr.name) {
+            Expr::Identifier(expr) => match self.env.get(&expr.name) {
                 Some(value) => value.clone(),
                 None => panic!("Undeclared identifier {}", expr.name),
             },
-            Expr::UnaryExpr(expr) => self.evaluate_unary_expr(&expr.op, &*expr.expr, env),
+            Expr::UnaryExpr(expr) => self.evaluate_unary_expr(&expr.op, &*expr.expr),
             Expr::BinaryExpr(expr) => {
-                self.evaluate_binary_expr(&*expr.left, &expr.op, &*expr.right, env)
+                self.evaluate_binary_expr(&*expr.left, &expr.op, &*expr.right)
             }
         }
     }
 
-    fn evaluate_unary_expr(&self, op: &UnaryOp, expr: &Expr, env: &mut Environment) -> Value {
-        let value = self.evaluate_expr(expr, env);
+    fn evaluate_unary_expr(&mut self, op: &UnaryOp, expr: &Expr) -> Value {
+        let value = self.evaluate_expr(expr);
         match value {
             Value::Bool(val) => self.evaluate_boolean_unary_expr(op, val),
             Value::Number(num) => self.evaluate_numeric_unary_expr(op, num),
@@ -125,15 +137,9 @@ impl Interpreter {
         }
     }
 
-    fn evaluate_binary_expr(
-        &self,
-        left: &Expr,
-        op: &BinaryOp,
-        right: &Expr,
-        env: &mut Environment,
-    ) -> Value {
-        let left = self.evaluate_expr(left, env);
-        let right = self.evaluate_expr(right, env);
+    fn evaluate_binary_expr(&mut self, left: &Expr, op: &BinaryOp, right: &Expr) -> Value {
+        let left = self.evaluate_expr(left);
+        let right = self.evaluate_expr(right);
         match (left, right) {
             (Value::Number(left), Value::Number(right)) => {
                 self.evaluate_numeric_binary_expr(left, op, right)
@@ -173,6 +179,17 @@ impl Interpreter {
             BinaryOp::Neq => Value::Bool(left != right),
             _ => panic!("Unsupported binary operator {:?} for booleans", op),
         }
+    }
+
+    fn enter_scope(&mut self) {
+        let new_env = Environment::new();
+        let outer_env = std::mem::replace(&mut self.env, new_env);
+        self.env.outer_env = Some(Box::new(outer_env));
+    }
+
+    fn exit_scope(&mut self) {
+        let outer_env = *self.env.outer_env.take().unwrap();
+        std::mem::replace(&mut self.env, outer_env);
     }
 }
 
@@ -348,6 +365,28 @@ x
         );
     }
 
+    #[test]
+    fn test_scope() {
+        let input = "
+var x = 5
+{
+  var x = 123
+  x = 100
+}
+x
+";
+        let expected = 5;
+
+        let value = evaluate_input(input);
+        assert!(
+            num_value_match(&value, expected),
+            "value: {:?} expected: {:?}",
+            value,
+            expected
+        );
+        
+    }
+
     fn str_value_match(value: &Value, expected: &str) -> bool {
         match value {
             Value::Str(value) => value == expected,
@@ -373,8 +412,7 @@ x
         let lexer = Lexer::new(input);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
-        let interpreter = Interpreter;
-        let mut env = Environment::new();
-        interpreter.evaluate_stmt(&program, &mut env)
+        let mut interpreter = Interpreter::new();
+        interpreter.evaluate_stmt(&program)
     }
 }
