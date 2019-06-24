@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use crate::ast::*;
-use crate::environment::Environment;
+use crate::environment::{global_env, Environment};
 use crate::value::Value;
 
 pub struct Interpreter {
@@ -10,9 +10,8 @@ pub struct Interpreter {
 
 impl Interpreter {
     pub fn new() -> Self {
-        Interpreter {
-            env: Environment::new(),
-        }
+        let env = global_env();
+        Interpreter { env: env }
     }
 
     pub fn evaluate_stmt(&mut self, stmt: &Stmt) -> Value {
@@ -219,8 +218,16 @@ impl Interpreter {
 
     fn evaluate_function_call(&mut self, call: &FunctionCall) -> Value {
         let decl = self.env.get(&call.name);
+
         let (params, body) = match decl {
             Some(Value::Function(.., params, body)) => (params.clone(), Rc::clone(body)),
+            Some(Value::BuiltinFunction0(.., func)) => return func(),
+            Some(Value::BuiltinFunction1(name, func)) => {
+                if call.args.len() != 1 {
+                    panic!("Function {} expects 1 argument", name);
+                }
+                return func(self.evaluate_expr(&call.args[0]));
+            }
             _ => panic!("Undeclared function {}", &call.name),
         };
 

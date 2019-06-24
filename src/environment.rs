@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::builtins::functions;
 use crate::value::Value;
 
 #[derive(Debug)]
@@ -32,13 +33,23 @@ impl Environment {
         }
     }
 
-    pub fn get(&mut self, key: &str) -> Option<&Value> {
+    pub fn get(&self, key: &str) -> Option<&Value> {
         match self.values.get(key) {
             value @ Some(..) => value,
             None => match self.outer_env {
-                Some(ref mut outer_env) => outer_env.get(key),
+                Some(ref outer_env) => outer_env.get(key),
                 None => None,
             },
         }
     }
+}
+
+pub fn global_env() -> Environment {
+    let mut env = Environment::new();
+
+    for (name, value) in functions() {
+        env.declare(name, value);
+    }
+
+    env
 }

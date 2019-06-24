@@ -9,6 +9,8 @@ pub enum Value {
     Break,
     Return(Box<Value>),
     Function(String, Vec<String>, Rc<crate::ast::Stmt>),
+    BuiltinFunction0(String, fn() -> Value),
+    BuiltinFunction1(String, fn(Value) -> Value),
     Void,
 }
 
@@ -20,6 +22,8 @@ impl fmt::Display for Value {
             Value::Bool(value) => write!(f, "{}", value),
             Value::Return(value) => write!(f, "{}", value),
             Value::Function(name, ..) => write!(f, "Function: {}", name),
+            Value::BuiltinFunction0(name, ..) => write!(f, "Builtin Function0: {}", name),
+            Value::BuiltinFunction1(name, ..) => write!(f, "Builtin Function1: {}", name),
             _ => write!(f, ""),
         }
     }
