@@ -1,4 +1,6 @@
-#[derive(Debug)]
+use std::rc::Rc;
+
+#[derive(Clone, Debug)]
 pub enum Expr {
     LiteralBoolean(LiteralBoolean),
     LiteralNumber(LiteralNumber),
@@ -6,9 +8,10 @@ pub enum Expr {
     Identifier(Identifier),
     UnaryExpr(UnaryExpr),
     BinaryExpr(BinaryExpr),
+    FunctionCall(FunctionCall),
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Stmt {
     Program(Vec<Stmt>),
     Block(Vec<Stmt>),
@@ -18,6 +21,8 @@ pub enum Stmt {
     IfStmt(IfStmt),
     WhileStmt(WhileStmt),
     BreakStmt,
+    ReturnStmt(ReturnStmt),
+    FunctionDecl(FunctionDecl),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -26,7 +31,7 @@ pub enum UnaryOp {
     Minus,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum BinaryOp {
     Plus,
     Minus,
@@ -42,65 +47,83 @@ pub enum BinaryOp {
     Leq,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct UnaryExpr {
     pub op: UnaryOp,
-    pub expr: Box<Expr>,
+    pub expr: Rc<Expr>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct BinaryExpr {
-    pub left: Box<Expr>,
+    pub left: Rc<Expr>,
     pub op: BinaryOp,
-    pub right: Box<Expr>,
+    pub right: Rc<Expr>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct LiteralBoolean {
     pub value: bool,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct LiteralNumber {
     pub value: i64,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct LiteralString {
     pub value: String,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Identifier {
     pub name: String,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ExprStmt {
     pub expr: Expr,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct VarDecl {
     pub name: String,
     pub initializer: Option<Expr>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Assign {
     pub name: String,
     pub expr: Expr,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct IfStmt {
     pub cond: Expr,
-    pub cons: Box<Stmt>,
-    pub alt: Option<Box<Stmt>>,
+    pub cons: Rc<Stmt>,
+    pub alt: Option<Rc<Stmt>>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct WhileStmt {
     pub cond: Expr,
-    pub body: Box<Stmt>,
+    pub body: Rc<Stmt>,
+}
+
+#[derive(Clone, Debug)]
+pub struct FunctionDecl {
+    pub name: String,
+    pub params: Vec<String>,
+    pub body: Rc<Stmt>,
+}
+
+#[derive(Clone, Debug)]
+pub struct FunctionCall {
+    pub name: String,
+    pub args: Vec<Expr>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ReturnStmt {
+    pub expr: Expr,
 }

@@ -1,4 +1,5 @@
 use std::fmt;
+use std::rc::Rc;
 
 #[derive(Clone, Debug)]
 pub enum Value {
@@ -6,6 +7,8 @@ pub enum Value {
     Str(String),
     Bool(bool),
     Break,
+    Return(Box<Value>),
+    Function(String, Vec<String>, Rc<crate::ast::Stmt>),
     Void,
 }
 
@@ -15,6 +18,8 @@ impl fmt::Display for Value {
             Value::Number(value) => write!(f, "{}", value),
             Value::Str(value) => write!(f, "{}", value),
             Value::Bool(value) => write!(f, "{}", value),
+            Value::Return(value) => write!(f, "{}", value),
+            Value::Function(name, ..) => write!(f, "Function: {}", name),
             _ => write!(f, ""),
         }
     }

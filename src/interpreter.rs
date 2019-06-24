@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::ast::*;
 use crate::environment::Environment;
 use crate::value::Value;
@@ -23,6 +25,8 @@ impl Interpreter {
             Stmt::IfStmt(stmt) => self.evaluate_if_stmt(&stmt),
             Stmt::WhileStmt(stmt) => self.evaluate_while_stmt(&stmt),
             Stmt::BreakStmt => Value::Break,
+            Stmt::ReturnStmt(stmt) => self.evaluate_return_stmt(&stmt),
+            Stmt::FunctionDecl(decl) => self.evaluate_function_decl(&decl),
         }
     }
 
@@ -33,6 +37,9 @@ impl Interpreter {
             val = self.evaluate_stmt(stmt);
             if let Value::Break = val {
                 panic!("Break found outside of a loop");
+            }
+            if let Value::Return(..) = val {
+                panic!("Return found outside of a function");
             }
         }
 
@@ -45,6 +52,13 @@ impl Interpreter {
         self.enter_scope();
         for stmt in stmts {
             val = self.evaluate_stmt(stmt);
+            match val {
+                Value::Break | Value::Return(..) => {
+                    self.exit_scope();
+                    return val;
+                }
+                _ => (),
+            }
         }
         self.exit_scope();
 
@@ -89,11 +103,32 @@ impl Interpreter {
         let mut cond = self.evaluate_expr(&while_stmt.cond);
 
         while let Value::Bool(true) = cond {
-            if let Value::Break = self.evaluate_stmt(&*while_stmt.body) {
-                break;
+            let val = self.evaluate_stmt(&*while_stmt.body);
+            match val {
+                Value::Break => break,
+                Value::Return(..) => return val,
+                _ => (),
             }
+
             cond = self.evaluate_expr(&while_stmt.cond);
         }
+
+        Value::Void
+    }
+
+    fn evaluate_return_stmt(&mut self, return_stmt: &ReturnStmt) -> Value {
+        let value = self.evaluate_expr(&return_stmt.expr);
+        Value::Return(Box::new(value))
+    }
+
+    fn evaluate_function_decl(&mut self, decl: &FunctionDecl) -> Value {
+        let function = Value::Function(
+            decl.name.clone(),
+            decl.params.clone(),
+            Rc::clone(&decl.body),
+        );
+
+        self.env.declare(decl.name.clone(), function);
 
         Value::Void
     }
@@ -111,6 +146,7 @@ impl Interpreter {
             Expr::BinaryExpr(expr) => {
                 self.evaluate_binary_expr(&*expr.left, &expr.op, &*expr.right)
             }
+            Expr::FunctionCall(expr) => self.evaluate_function_call(&expr),
         }
     }
 
@@ -178,6 +214,39 @@ impl Interpreter {
             BinaryOp::Eq => Value::Bool(left == right),
             BinaryOp::Neq => Value::Bool(left != right),
             _ => panic!("Unsupported binary operator {:?} for booleans", op),
+        }
+    }
+
+    fn evaluate_function_call(&mut self, call: &FunctionCall) -> Value {
+        let decl = self.env.get(&call.name);
+        let (params, body) = match decl {
+            Some(Value::Function(.., params, body)) => (params.clone(), Rc::clone(body)),
+            _ => panic!("Undeclared function {}", &call.name),
+        };
+
+        if call.args.len() != params.len() {
+            panic!(
+                "Expected {} args, but got {}",
+                params.len(),
+                call.args.len()
+            )
+        }
+
+        self.enter_scope();
+        for (i, param) in params.into_iter().enumerate() {
+            let arg_value = self.evaluate_expr(&call.args[i]);
+            self.env.declare(param, arg_value);
+        }
+        let result = self.evaluate_stmt(&body);
+        self.exit_scope();
+
+        self.unwrap_return(result)
+    }
+
+    fn unwrap_return(&self, result: Value) -> Value {
+        match result {
+            Value::Return(value) => *value,
+            _ => result,
         }
     }
 
@@ -350,6 +419,7 @@ while x < 1000 {
   x = x + 1
   if x >= 500 {
     break
+    x = 0
   }
 }
 x
@@ -384,7 +454,23 @@ x
             value,
             expected
         );
-        
+    }
+
+    #[test]
+    fn test_function() {
+        let input = "
+def twice(x) { return 2 * x }
+twice(100)
+";
+        let expected = 200;
+
+        let value = evaluate_input(input);
+        assert!(
+            num_value_match(&value, expected),
+            "value: {:?} expected: {:?}",
+            value,
+            expected
+        );
     }
 
     fn str_value_match(value: &Value, expected: &str) -> bool {

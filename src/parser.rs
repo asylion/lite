@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::ast::*;
 use crate::lexer::Lexer;
 use crate::token::{Token, TokenKind};
@@ -49,6 +51,8 @@ impl Parser {
             TokenKind::If => self.parse_if_stmt(),
             TokenKind::While => self.parse_while_stmt(),
             TokenKind::Break => self.parse_break_stmt(),
+            TokenKind::Return => self.parse_return_stmt(),
+            TokenKind::Def => self.parse_function_decl(),
             TokenKind::Ident => {
                 if self.peek().kind == TokenKind::Assign {
                     self.parse_assign()
@@ -89,12 +93,12 @@ impl Parser {
         let mut alt = None;
         if self.current().kind == TokenKind::Else {
             self.consume();
-            alt = Some(Box::new(self.parse_block()));
+            alt = Some(Rc::new(self.parse_block()));
         }
 
         Stmt::IfStmt(IfStmt {
             cond: cond,
-            cons: Box::new(cons),
+            cons: Rc::new(cons),
             alt: alt,
         })
     }
@@ -107,13 +111,51 @@ impl Parser {
 
         Stmt::WhileStmt(WhileStmt {
             cond: cond,
-            body: Box::new(body),
+            body: Rc::new(body),
         })
     }
 
     fn parse_break_stmt(&mut self) -> Stmt {
         self.expect(TokenKind::Break);
         Stmt::BreakStmt
+    }
+
+    fn parse_return_stmt(&mut self) -> Stmt {
+        self.expect(TokenKind::Return);
+        Stmt::ReturnStmt(ReturnStmt {
+            expr: self.parse_expr(),
+        })
+    }
+
+    fn parse_function_decl(&mut self) -> Stmt {
+        self.expect(TokenKind::Def);
+
+        let name = self.current().value.clone();
+        self.expect(TokenKind::Ident);
+
+        self.expect(TokenKind::LParen);
+        let mut params = Vec::new();
+        if self.current().kind == TokenKind::Ident {
+            loop {
+                let param = self.current().value.clone();
+                self.expect(TokenKind::Ident);
+                params.push(param);
+
+                if self.current().kind != TokenKind::Comma {
+                    break;
+                }
+                self.consume();
+            }
+        }
+        self.expect(TokenKind::RParen);
+
+        let body = self.parse_block();
+
+        Stmt::FunctionDecl(FunctionDecl {
+            name: name,
+            params: params,
+            body: Rc::new(body),
+        })
     }
 
     fn parse_assign(&mut self) -> Stmt {
@@ -150,9 +192,9 @@ impl Parser {
             self.consume();
 
             expr = Expr::BinaryExpr(BinaryExpr {
-                left: Box::new(expr),
+                left: Rc::new(expr),
                 op: op,
-                right: Box::new(self.parse_and()),
+                right: Rc::new(self.parse_and()),
             });
         }
     }
@@ -168,9 +210,9 @@ impl Parser {
             self.consume();
 
             expr = Expr::BinaryExpr(BinaryExpr {
-                left: Box::new(expr),
+                left: Rc::new(expr),
                 op: op,
-                right: Box::new(self.parse_equality()),
+                right: Rc::new(self.parse_equality()),
             });
         }
     }
@@ -187,9 +229,9 @@ impl Parser {
             self.consume();
 
             expr = Expr::BinaryExpr(BinaryExpr {
-                left: Box::new(expr),
+                left: Rc::new(expr),
                 op: op,
-                right: Box::new(self.parse_comparison()),
+                right: Rc::new(self.parse_comparison()),
             });
         }
     }
@@ -208,9 +250,9 @@ impl Parser {
             self.consume();
 
             expr = Expr::BinaryExpr(BinaryExpr {
-                left: Box::new(expr),
+                left: Rc::new(expr),
                 op: op,
-                right: Box::new(self.parse_addition()),
+                right: Rc::new(self.parse_addition()),
             });
         }
     }
@@ -227,9 +269,9 @@ impl Parser {
             self.consume();
 
             expr = Expr::BinaryExpr(BinaryExpr {
-                left: Box::new(expr),
+                left: Rc::new(expr),
                 op: op,
-                right: Box::new(self.parse_multiplication()),
+                right: Rc::new(self.parse_multiplication()),
             });
         }
     }
@@ -246,9 +288,9 @@ impl Parser {
             self.consume();
 
             expr = Expr::BinaryExpr(BinaryExpr {
-                left: Box::new(expr),
+                left: Rc::new(expr),
                 op: op,
-                right: Box::new(self.parse_unary()),
+                right: Rc::new(self.parse_unary()),
             });
         }
     }
@@ -263,7 +305,7 @@ impl Parser {
 
         Expr::UnaryExpr(UnaryExpr {
             op: op,
-            expr: Box::new(self.parse_unary()),
+            expr: Rc::new(self.parse_unary()),
         })
     }
 
@@ -272,7 +314,12 @@ impl Parser {
             TokenKind::True | TokenKind::False => self.parse_literal_boolean(),
             TokenKind::Number => self.parse_literal_number(),
             TokenKind::Str => self.parse_literal_string(),
-            TokenKind::Ident => self.parse_identifier(),
+            TokenKind::Ident => {
+                if self.peek().kind == TokenKind::LParen {
+                    return self.parse_function_call();
+                }
+                self.parse_identifier()
+            }
             TokenKind::LParen => {
                 self.consume();
                 let expr = self.parse_expr();
@@ -281,6 +328,30 @@ impl Parser {
             }
             _ => panic!("Unexpected token: {:?}", self.current()),
         }
+    }
+
+    fn parse_function_call(&mut self) -> Expr {
+        let name = self.current().value.clone();
+        self.expect(TokenKind::Ident);
+        self.expect(TokenKind::LParen);
+
+        let mut args = Vec::new();
+        if self.current().kind != TokenKind::RParen {
+            loop {
+                args.push(self.parse_expr());
+
+                if self.current().kind != TokenKind::Comma {
+                    break;
+                }
+                self.consume();
+            }
+        }
+        self.expect(TokenKind::RParen);
+
+        Expr::FunctionCall(FunctionCall {
+            name: name,
+            args: args,
+        })
     }
 
     fn parse_literal_boolean(&mut self) -> Expr {
@@ -357,7 +428,7 @@ mod tests {
         let mut stmts = get_statements(program, 1);
         let expr_stmt = get_expr_stmt(stmts.pop().unwrap());
 
-        test_literal_number(expr_stmt.expr, 1)
+        test_literal_number(&expr_stmt.expr, 1)
     }
 
     #[test]
@@ -375,7 +446,7 @@ mod tests {
                 panic!("Expected operator {:?}, but got {:?}", op, unary_expr.op);
             }
 
-            test_literal_number(*unary_expr.expr, val);
+            test_literal_number(&unary_expr.expr, val);
         }
     }
 
@@ -407,8 +478,8 @@ mod tests {
                 op, binary_expr.op
             );
 
-            test_literal_number(*binary_expr.left, left_val);
-            test_literal_number(*binary_expr.right, right_val);
+            test_literal_number(&*binary_expr.left, left_val);
+            test_literal_number(&*binary_expr.right, right_val);
         }
     }
 
@@ -422,13 +493,14 @@ mod tests {
 
         test_literal_boolean(if_stmt.cond, true);
 
-        let mut cons_stmts = get_statements(*if_stmt.cons, 1);
+        let mut cons_stmts = get_statements((*if_stmt.cons).clone(), 1);
         let cons_expr_stmt = get_expr_stmt(cons_stmts.pop().unwrap());
-        test_literal_number(cons_expr_stmt.expr, 1);
+        test_literal_number(&cons_expr_stmt.expr, 1);
 
-        let mut alt_stmts = get_statements(*if_stmt.alt.expect("Expected an else block"), 1);
+        let mut alt_stmts =
+            get_statements((*if_stmt.alt.expect("Expected an else block")).clone(), 1);
         let alt_expr_stmt = get_expr_stmt(alt_stmts.pop().unwrap());
-        test_literal_number(alt_expr_stmt.expr, 2);
+        test_literal_number(&alt_expr_stmt.expr, 2);
     }
 
     #[test]
@@ -440,14 +512,14 @@ mod tests {
         let while_stmt = get_while_stmt(stmts.pop().unwrap());
         test_literal_boolean(while_stmt.cond, true);
 
-        let mut body = get_statements(*while_stmt.body, 2);
+        let mut body = get_statements((*while_stmt.body).clone(), 2);
         match body.pop().unwrap() {
             Stmt::BreakStmt => (),
             _ => panic!("Expected a BreakStmt"),
         }
 
         let expr_stmt = get_expr_stmt(body.pop().unwrap());
-        test_literal_number(expr_stmt.expr, 1);
+        test_literal_number(&expr_stmt.expr, 1);
     }
 
     #[test]
@@ -459,7 +531,40 @@ mod tests {
         let var_decl = get_var_decl(stmts.pop().unwrap());
 
         assert_eq!(var_decl.name, "x");
-        test_literal_number(var_decl.initializer.expect("Missing initializer"), 1);
+        test_literal_number(&var_decl.initializer.expect("Missing initializer"), 1);
+    }
+
+    #[test]
+    fn test_parse_function_decl() {
+        let input = "def two(x, y) { 2 }";
+        let program = parse_program(input);
+
+        let mut stmts = get_statements(program, 1);
+        let func_decl = get_function_decl(stmts.pop().unwrap());
+
+        assert_eq!(func_decl.name, "two");
+        assert_eq!(func_decl.params.len(), 2);
+
+        let mut body_stmts = get_statements((*func_decl.body).clone(), 1);
+        let expr_stmt = get_expr_stmt(body_stmts.pop().unwrap());
+        test_literal_number(&expr_stmt.expr, 2);
+    }
+
+    #[test]
+    fn test_parse_function_call() {
+        let input = "add(1, 2)";
+        let program = parse_program(input);
+
+        let mut stmts = get_statements(program, 1);
+        let expr_stmt = get_expr_stmt(stmts.pop().unwrap());
+
+        let func_call = get_function_call(expr_stmt.expr);
+
+        assert_eq!(func_call.name, "add");
+        assert_eq!(func_call.args.len(), 2);
+
+        test_literal_number(&func_call.args[0], 1);
+        test_literal_number(&func_call.args[1], 2);
     }
 
     #[test]
@@ -471,7 +576,7 @@ mod tests {
         let assign = get_assign(stmts.pop().unwrap());
 
         assert_eq!(assign.name, "x");
-        test_literal_number(assign.expr, 1);
+        test_literal_number(&assign.expr, 1);
     }
 
     fn get_statements(stmts: Stmt, num: usize) -> Vec<Stmt> {
@@ -520,10 +625,24 @@ mod tests {
         }
     }
 
+    fn get_function_decl(stmt: Stmt) -> FunctionDecl {
+        match stmt {
+            Stmt::FunctionDecl(stmt) => stmt,
+            _ => panic!("Expected a FunctionDecl, but got {:?}", stmt),
+        }
+    }
+
     fn get_assign(stmt: Stmt) -> Assign {
         match stmt {
             Stmt::Assign(stmt) => stmt,
             _ => panic!("Expected an Assign, but got {:?}", stmt),
+        }
+    }
+
+    fn get_function_call(expr: Expr) -> FunctionCall {
+        match expr {
+            Expr::FunctionCall(call) => call,
+            _ => panic!("Expected a FunctionDecl, but got {:?}", expr),
         }
     }
 
@@ -541,7 +660,7 @@ mod tests {
         }
     }
 
-    fn test_literal_number(expr: Expr, value: i64) {
+    fn test_literal_number(expr: &Expr, value: i64) {
         match expr {
             Expr::LiteralNumber(num) => {
                 if num.value != value {

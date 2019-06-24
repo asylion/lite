@@ -41,6 +41,7 @@ pub enum TokenKind {
     Break,
 
     Def,
+    Return,
 
     Comma,
 
@@ -79,6 +80,7 @@ pub fn identifier_kind(identifier: &str) -> TokenKind {
         "while" => TokenKind::While,
         "break" => TokenKind::Break,
         "def" => TokenKind::Def,
+        "return" => TokenKind::Return,
         _ => TokenKind::Ident,
     }
 }
