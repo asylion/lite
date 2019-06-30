@@ -8,6 +8,7 @@ pub enum TokenKind {
     Minus,
     Multiply,
     Divide,
+    Mod,
 
     And,
     Or,

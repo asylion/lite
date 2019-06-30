@@ -25,6 +25,7 @@ impl Lexer {
                 '-' => Token::from_char(TokenKind::Minus, ch),
                 '*' => Token::from_char(TokenKind::Multiply, ch),
                 '/' => Token::from_char(TokenKind::Divide, ch),
+                '%' => Token::from_char(TokenKind::Mod, ch),
                 '(' => Token::from_char(TokenKind::LParen, ch),
                 ')' => Token::from_char(TokenKind::RParen, ch),
                 '{' => Token::from_char(TokenKind::LBrace, ch),
@@ -205,7 +206,7 @@ mod tests {
     #[test]
     fn test_next_token() {
         let input = r#"
-+ - * /
++ - * / %
 123 + 4
 ()
 "hello"
@@ -225,6 +226,7 @@ def ,
             (TokenKind::Minus, "-"),
             (TokenKind::Multiply, "*"),
             (TokenKind::Divide, "/"),
+            (TokenKind::Mod, "%"),
             (TokenKind::Number, "123"),
             (TokenKind::Plus, "+"),
             (TokenKind::Number, "4"),

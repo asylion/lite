@@ -283,6 +283,7 @@ impl Parser {
             let op = match self.current().kind {
                 TokenKind::Multiply => BinaryOp::Multiply,
                 TokenKind::Divide => BinaryOp::Divide,
+                TokenKind::Mod => BinaryOp::Mod,
                 _ => return expr,
             };
             self.consume();
@@ -457,6 +458,7 @@ mod tests {
             ("1 - 2", 1, BinaryOp::Minus, 2),
             ("1 * 2", 1, BinaryOp::Multiply, 2),
             ("1 / 2", 1, BinaryOp::Divide, 2),
+            ("1 % 2", 1, BinaryOp::Mod, 2),
             ("1 && 2", 1, BinaryOp::And, 2),
             ("1 || 2", 1, BinaryOp::Or, 2),
             ("1 == 2", 1, BinaryOp::Eq, 2),

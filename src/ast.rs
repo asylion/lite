@@ -37,6 +37,7 @@ pub enum BinaryOp {
     Minus,
     Multiply,
     Divide,
+    Mod,
     And,
     Or,
     Eq,

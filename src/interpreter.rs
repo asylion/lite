@@ -196,6 +196,7 @@ impl Interpreter {
             BinaryOp::Minus => Value::Number(left - right),
             BinaryOp::Multiply => Value::Number(left * right),
             BinaryOp::Divide => Value::Number(left / right),
+            BinaryOp::Mod => Value::Number(left % right),
             BinaryOp::Eq => Value::Bool(left == right),
             BinaryOp::Neq => Value::Bool(left != right),
             BinaryOp::Gt => Value::Bool(left > right),
@@ -341,7 +342,13 @@ x
 
     #[test]
     fn test_evaluate_numeric_binary_expr() {
-        let numeric_cases = vec![("1 + 1", 2), ("1 - 1", 0), ("2 * 2", 4), ("10 / 2", 5)];
+        let numeric_cases = vec![
+            ("1 + 1", 2),
+            ("1 - 1", 0),
+            ("2 * 2", 4),
+            ("10 / 2", 5),
+            ("7 % 3", 1),
+        ];
 
         for (i, (input, expected)) in numeric_cases.into_iter().enumerate() {
             let value = evaluate_input(input);
