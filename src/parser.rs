@@ -12,39 +12,40 @@ pub struct Parser {
 
 impl Parser {
     pub fn new(mut lexer: Lexer) -> Self {
-        let current_token = lexer.next_token();
-        let next_token = lexer.next_token();
-
         Parser {
             lexer: lexer,
-            current_token: current_token,
-            next_token: next_token,
+            current_token: Token::eof(),
+            next_token: Token::eof(),
         }
     }
 
-    pub fn parse_program(&mut self) -> Stmt {
+    pub fn parse_program(&mut self) -> Result<Stmt, String> {
+        // Initialize first and lookahead tokens
+        self.consume()?;
+        self.consume()?;
+
         let mut stmts = Vec::new();
         while self.current().kind != TokenKind::Eof {
-            stmts.push(self.parse_stmt());
+            stmts.push(self.parse_stmt()?);
         }
 
-        Stmt::Program(stmts)
+        Ok(Stmt::Program(stmts))
     }
 
-    pub fn parse_block(&mut self) -> Stmt {
-        self.expect(TokenKind::LBrace);
+    fn parse_block(&mut self) -> Result<Stmt, String> {
+        self.expect(TokenKind::LBrace)?;
 
         let mut stmts = Vec::new();
 
         while self.current().kind != TokenKind::RBrace {
-            stmts.push(self.parse_stmt());
+            stmts.push(self.parse_stmt()?);
         }
-        self.expect(TokenKind::RBrace);
+        self.expect(TokenKind::RBrace)?;
 
-        Stmt::Block(stmts)
+        Ok(Stmt::Block(stmts))
     }
 
-    fn parse_stmt(&mut self) -> Stmt {
+    fn parse_stmt(&mut self) -> Result<Stmt, String> {
         match self.current().kind {
             TokenKind::LBrace => self.parse_block(),
             TokenKind::Var => self.parse_var_decl(),
@@ -64,180 +65,180 @@ impl Parser {
         }
     }
 
-    fn parse_var_decl(&mut self) -> Stmt {
-        self.expect(TokenKind::Var);
+    fn parse_var_decl(&mut self) -> Result<Stmt, String> {
+        self.expect(TokenKind::Var)?;
 
         let name = self.current().value.clone();
-        self.expect(TokenKind::Ident);
+        self.expect(TokenKind::Ident)?;
 
         let initializer = match self.current().kind {
             TokenKind::Assign => {
-                self.consume();
-                Some(self.parse_expr())
+                self.consume()?;
+                Some(self.parse_expr()?)
             }
             _ => None,
         };
 
-        Stmt::VarDecl(VarDecl {
+        Ok(Stmt::VarDecl(VarDecl {
             name: name,
             initializer: initializer,
-        })
+        }))
     }
 
-    fn parse_if_stmt(&mut self) -> Stmt {
-        self.expect(TokenKind::If);
-        let cond = self.parse_expr();
+    fn parse_if_stmt(&mut self) -> Result<Stmt, String> {
+        self.expect(TokenKind::If)?;
+        let cond = self.parse_expr()?;
 
-        let cons = self.parse_block();
+        let cons = self.parse_block()?;
 
         let mut alt = None;
         if self.current().kind == TokenKind::Else {
-            self.consume();
-            alt = Some(Rc::new(self.parse_block()));
+            self.consume()?;
+            alt = Some(Rc::new(self.parse_block()?));
         }
 
-        Stmt::IfStmt(IfStmt {
+        Ok(Stmt::IfStmt(IfStmt {
             cond: cond,
             cons: Rc::new(cons),
             alt: alt,
-        })
+        }))
     }
 
-    fn parse_while_stmt(&mut self) -> Stmt {
-        self.expect(TokenKind::While);
+    fn parse_while_stmt(&mut self) -> Result<Stmt, String> {
+        self.expect(TokenKind::While)?;
 
-        let cond = self.parse_expr();
-        let body = self.parse_block();
+        let cond = self.parse_expr()?;
+        let body = self.parse_block()?;
 
-        Stmt::WhileStmt(WhileStmt {
+        Ok(Stmt::WhileStmt(WhileStmt {
             cond: cond,
             body: Rc::new(body),
-        })
+        }))
     }
 
-    fn parse_break_stmt(&mut self) -> Stmt {
-        self.expect(TokenKind::Break);
-        Stmt::BreakStmt
+    fn parse_break_stmt(&mut self) -> Result<Stmt, String> {
+        self.expect(TokenKind::Break)?;
+        Ok(Stmt::BreakStmt)
     }
 
-    fn parse_return_stmt(&mut self) -> Stmt {
-        self.expect(TokenKind::Return);
-        Stmt::ReturnStmt(ReturnStmt {
-            expr: self.parse_expr(),
-        })
+    fn parse_return_stmt(&mut self) -> Result<Stmt, String> {
+        self.expect(TokenKind::Return)?;
+        Ok(Stmt::ReturnStmt(ReturnStmt {
+            expr: self.parse_expr()?,
+        }))
     }
 
-    fn parse_function_decl(&mut self) -> Stmt {
-        self.expect(TokenKind::Def);
+    fn parse_function_decl(&mut self) -> Result<Stmt, String> {
+        self.expect(TokenKind::Def)?;
 
         let name = self.current().value.clone();
-        self.expect(TokenKind::Ident);
+        self.expect(TokenKind::Ident)?;
 
-        self.expect(TokenKind::LParen);
+        self.expect(TokenKind::LParen)?;
         let mut params = Vec::new();
         if self.current().kind == TokenKind::Ident {
             loop {
                 let param = self.current().value.clone();
-                self.expect(TokenKind::Ident);
+                self.expect(TokenKind::Ident)?;
                 params.push(param);
 
                 if self.current().kind != TokenKind::Comma {
                     break;
                 }
-                self.consume();
+                self.consume()?;
             }
         }
-        self.expect(TokenKind::RParen);
+        self.expect(TokenKind::RParen)?;
 
-        let body = self.parse_block();
+        let body = self.parse_block()?;
 
-        Stmt::FunctionDecl(FunctionDecl {
+        Ok(Stmt::FunctionDecl(FunctionDecl {
             name: name,
             params: params,
             body: Rc::new(body),
-        })
+        }))
     }
 
-    fn parse_assign(&mut self) -> Stmt {
+    fn parse_assign(&mut self) -> Result<Stmt, String> {
         let name = self.current().value.clone();
-        self.expect(TokenKind::Ident);
+        self.expect(TokenKind::Ident)?;
 
-        self.expect(TokenKind::Assign);
+        self.expect(TokenKind::Assign)?;
 
-        let expr = self.parse_expr();
+        let expr = self.parse_expr()?;
 
-        Stmt::Assign(Assign {
+        Ok(Stmt::Assign(Assign {
             name: name,
             expr: expr,
-        })
+        }))
     }
 
-    fn parse_expr_stmt(&mut self) -> Stmt {
-        let expr = self.parse_expr();
-        Stmt::ExprStmt(ExprStmt { expr: expr })
+    fn parse_expr_stmt(&mut self) -> Result<Stmt, String> {
+        let expr = self.parse_expr()?;
+        Ok(Stmt::ExprStmt(ExprStmt { expr: expr }))
     }
 
-    fn parse_expr(&mut self) -> Expr {
+    fn parse_expr(&mut self) -> Result<Expr, String> {
         self.parse_or()
     }
 
-    fn parse_or(&mut self) -> Expr {
-        let mut expr = self.parse_and();
+    fn parse_or(&mut self) -> Result<Expr, String> {
+        let mut expr = self.parse_and()?;
 
         loop {
             let op = match self.current().kind {
                 TokenKind::Or => BinaryOp::Or,
-                _ => return expr,
+                _ => return Ok(expr),
             };
-            self.consume();
+            self.consume()?;
 
             expr = Expr::BinaryExpr(BinaryExpr {
                 left: Rc::new(expr),
                 op: op,
-                right: Rc::new(self.parse_and()),
+                right: Rc::new(self.parse_and()?),
             });
         }
     }
 
-    fn parse_and(&mut self) -> Expr {
-        let mut expr = self.parse_equality();
+    fn parse_and(&mut self) -> Result<Expr, String> {
+        let mut expr = self.parse_equality()?;
 
         loop {
             let op = match self.current().kind {
                 TokenKind::And => BinaryOp::And,
-                _ => return expr,
+                _ => return Ok(expr),
             };
-            self.consume();
+            self.consume()?;
 
             expr = Expr::BinaryExpr(BinaryExpr {
                 left: Rc::new(expr),
                 op: op,
-                right: Rc::new(self.parse_equality()),
+                right: Rc::new(self.parse_equality()?),
             });
         }
     }
 
-    fn parse_equality(&mut self) -> Expr {
-        let mut expr = self.parse_comparison();
+    fn parse_equality(&mut self) -> Result<Expr, String> {
+        let mut expr = self.parse_comparison()?;
 
         loop {
             let op = match self.current().kind {
                 TokenKind::Eq => BinaryOp::Eq,
                 TokenKind::Neq => BinaryOp::Neq,
-                _ => return expr,
+                _ => return Ok(expr),
             };
-            self.consume();
+            self.consume()?;
 
             expr = Expr::BinaryExpr(BinaryExpr {
                 left: Rc::new(expr),
                 op: op,
-                right: Rc::new(self.parse_comparison()),
+                right: Rc::new(self.parse_comparison()?),
             });
         }
     }
 
-    fn parse_comparison(&mut self) -> Expr {
-        let mut expr = self.parse_addition();
+    fn parse_comparison(&mut self) -> Result<Expr, String> {
+        let mut expr = self.parse_addition()?;
 
         loop {
             let op = match self.current().kind {
@@ -245,72 +246,72 @@ impl Parser {
                 TokenKind::Lt => BinaryOp::Lt,
                 TokenKind::Geq => BinaryOp::Geq,
                 TokenKind::Leq => BinaryOp::Leq,
-                _ => return expr,
+                _ => return Ok(expr),
             };
-            self.consume();
+            self.consume()?;
 
             expr = Expr::BinaryExpr(BinaryExpr {
                 left: Rc::new(expr),
                 op: op,
-                right: Rc::new(self.parse_addition()),
+                right: Rc::new(self.parse_addition()?),
             });
         }
     }
 
-    fn parse_addition(&mut self) -> Expr {
-        let mut expr = self.parse_multiplication();
+    fn parse_addition(&mut self) -> Result<Expr, String> {
+        let mut expr = self.parse_multiplication()?;
 
         loop {
             let op = match self.current().kind {
                 TokenKind::Plus => BinaryOp::Plus,
                 TokenKind::Minus => BinaryOp::Minus,
-                _ => return expr,
+                _ => return Ok(expr),
             };
-            self.consume();
+            self.consume()?;
 
             expr = Expr::BinaryExpr(BinaryExpr {
                 left: Rc::new(expr),
                 op: op,
-                right: Rc::new(self.parse_multiplication()),
+                right: Rc::new(self.parse_multiplication()?),
             });
         }
     }
 
-    fn parse_multiplication(&mut self) -> Expr {
-        let mut expr = self.parse_unary();
+    fn parse_multiplication(&mut self) -> Result<Expr, String> {
+        let mut expr = self.parse_unary()?;
 
         loop {
             let op = match self.current().kind {
                 TokenKind::Multiply => BinaryOp::Multiply,
                 TokenKind::Divide => BinaryOp::Divide,
                 TokenKind::Mod => BinaryOp::Mod,
-                _ => return expr,
+                _ => return Ok(expr),
             };
-            self.consume();
+            self.consume()?;
 
             expr = Expr::BinaryExpr(BinaryExpr {
                 left: Rc::new(expr),
                 op: op,
-                right: Rc::new(self.parse_unary()),
+                right: Rc::new(self.parse_unary()?),
             });
         }
     }
 
-    fn parse_unary(&mut self) -> Expr {
+    fn parse_unary(&mut self) -> Result<Expr, String> {
         let op = match self.current().kind {
             TokenKind::Not => UnaryOp::Not,
             TokenKind::Minus => UnaryOp::Minus,
             _ => return self.parse_term(),
         };
-        self.consume();
+        self.consume()?;
 
-        Expr::UnaryExpr(UnaryExpr {
+        Ok(Expr::UnaryExpr(UnaryExpr {
             op: op,
-            expr: Rc::new(self.parse_unary()),
-        })
+            expr: Rc::new(self.parse_unary()?),
+        }))
     }
 
-    fn parse_term(&mut self) -> Expr {
+    fn parse_term(&mut self) -> Result<Expr, String> {
         match self.current().kind {
             TokenKind::True | TokenKind::False => self.parse_literal_boolean(),
             TokenKind::Number => self.parse_literal_number(),
@@ -322,63 +323,63 @@ impl Parser {
                 self.parse_identifier()
             }
             TokenKind::LParen => {
-                self.consume();
+                self.consume()?;
                 let expr = self.parse_expr();
-                self.expect(TokenKind::RParen);
+                self.expect(TokenKind::RParen)?;
                 expr
             }
-            _ => panic!("Unexpected token: {:?}", self.current()),
+            _ => Err(format!("Unexpected token: {:?}", self.current())),
         }
     }
 
-    fn parse_function_call(&mut self) -> Expr {
+    fn parse_function_call(&mut self) -> Result<Expr, String> {
         let name = self.current().value.clone();
-        self.expect(TokenKind::Ident);
-        self.expect(TokenKind::LParen);
+        self.expect(TokenKind::Ident)?;
+        self.expect(TokenKind::LParen)?;
 
         let mut args = Vec::new();
         if self.current().kind != TokenKind::RParen {
             loop {
-                args.push(self.parse_expr());
+                args.push(self.parse_expr()?);
 
                 if self.current().kind != TokenKind::Comma {
                     break;
                 }
-                self.consume();
+                self.consume()?;
             }
         }
-        self.expect(TokenKind::RParen);
+        self.expect(TokenKind::RParen)?;
 
-        Expr::FunctionCall(FunctionCall {
+        Ok(Expr::FunctionCall(FunctionCall {
             name: name,
             args: args,
-        })
+        }))
     }
 
-    fn parse_literal_boolean(&mut self) -> Expr {
+    fn parse_literal_boolean(&mut self) -> Result<Expr, String> {
         let value = self.current().kind == TokenKind::True;
-        self.expect_any(vec![TokenKind::True, TokenKind::False]);
-        Expr::LiteralBoolean(LiteralBoolean { value: value })
+        self.expect_any(vec![TokenKind::True, TokenKind::False])?;
+        Ok(Expr::LiteralBoolean(LiteralBoolean { value: value }))
     }
 
-    fn parse_literal_number(&mut self) -> Expr {
+    fn parse_literal_number(&mut self) -> Result<Expr, String> {
         let value = self.current().value.clone();
-        self.expect(TokenKind::Number);
-        Expr::LiteralNumber(LiteralNumber {
+        self.expect(TokenKind::Number)?;
+        Ok(Expr::LiteralNumber(LiteralNumber {
             value: value.parse::<i64>().unwrap(),
-        })
+        }))
     }
 
-    fn parse_literal_string(&mut self) -> Expr {
+    fn parse_literal_string(&mut self) -> Result<Expr, String> {
         let value = self.current().value.clone();
-        self.expect(TokenKind::Str);
-        Expr::LiteralString(LiteralString { value: value })
+        self.expect(TokenKind::Str)?;
+        Ok(Expr::LiteralString(LiteralString { value: value }))
     }
 
-    fn parse_identifier(&mut self) -> Expr {
+    fn parse_identifier(&mut self) -> Result<Expr, String> {
         let name = self.current().value.clone();
-        self.expect(TokenKind::Ident);
-        Expr::Identifier(Identifier { name: name })
+        self.expect(TokenKind::Ident)?;
+        Ok(Expr::Identifier(Identifier { name: name }))
     }
 
     fn current(&self) -> &Token {
@@ -389,31 +390,35 @@ impl Parser {
         &self.next_token
     }
 
-    fn consume(&mut self) {
-        let current_token = std::mem::replace(&mut self.next_token, self.lexer.next_token());
+    fn consume(&mut self) -> Result<(), String> {
+        let current_token = std::mem::replace(&mut self.next_token, self.lexer.next_token()?);
         self.current_token = current_token;
+        Ok(())
     }
 
-    fn expect(&mut self, expected: TokenKind) {
+    fn expect(&mut self, expected: TokenKind) -> Result<(), String> {
         if self.current().kind != expected {
-            panic!("Expected {:?} but got {:?}", expected, self.current().kind);
+            return Err(format!(
+                "Expected {:?} but got {:?}",
+                expected,
+                self.current().kind
+            ));
         }
-        self.consume();
+        self.consume()
     }
 
-    fn expect_any(&mut self, expected: Vec<TokenKind>) {
+    fn expect_any(&mut self, expected: Vec<TokenKind>) -> Result<(), String> {
         for token in &expected {
             if *token == self.current().kind {
-                self.consume();
-                return;
+                return self.consume();
             }
         }
 
-        panic!(
+        Err(format!(
             "Expected one of {:?} but got {:?}",
             expected,
             self.current().kind
-        );
+        ))
     }
 }
 
@@ -687,6 +692,6 @@ mod tests {
     fn parse_program(input: &str) -> Stmt {
         let lexer = Lexer::new(input);
         let mut parser = Parser::new(lexer);
-        parser.parse_program()
+        parser.parse_program().unwrap()
     }
 }

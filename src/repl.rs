@@ -1,5 +1,4 @@
 use std::io::{self, Write};
-use std::panic::{self, AssertUnwindSafe};
 
 use crate::interpreter::Interpreter;
 use crate::lexer::Lexer;
@@ -17,16 +16,25 @@ pub fn start() {
         let mut input = String::new();
         io::stdin().read_line(&mut input).unwrap();
 
-        let _ = panic::catch_unwind(AssertUnwindSafe(|| {
-            let lexer = Lexer::new(input);
-            let mut parser = Parser::new(lexer);
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
 
-            let value = interpreter.evaluate_stmt(&parser.parse_program());
+        let ast = match parser.parse_program() {
+            Ok(ast) => ast,
+            Err(err) => {
+                println!("Parse error: {}", err);
+                continue;
+            }
+        };
 
-            match value {
+        let value = interpreter.evaluate_stmt(&ast);
+
+        match value {
+            Ok(value) => match value {
                 Value::Void => (),
                 _ => println!("{}", value),
-            }
-        }));
+            },
+            Err(err) => println!("Evaluation error: {}", err),
+        }
     }
 }

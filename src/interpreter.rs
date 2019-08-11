@@ -14,7 +14,7 @@ impl Interpreter {
         Interpreter { env: env }
     }
 
-    pub fn evaluate_stmt(&mut self, stmt: &Stmt) -> Value {
+    pub fn evaluate_stmt(&mut self, stmt: &Stmt) -> Result<Value, String> {
         match stmt {
             Stmt::Program(stmts) => self.evaluate_program(&stmts),
             Stmt::Block(stmts) => self.evaluate_block(&stmts),
@@ -23,70 +23,70 @@ impl Interpreter {
             Stmt::Assign(stmt) => self.evaluate_assign(&stmt),
             Stmt::IfStmt(stmt) => self.evaluate_if_stmt(&stmt),
             Stmt::WhileStmt(stmt) => self.evaluate_while_stmt(&stmt),
-            Stmt::BreakStmt => Value::Break,
+            Stmt::BreakStmt => Ok(Value::Break),
             Stmt::ReturnStmt(stmt) => self.evaluate_return_stmt(&stmt),
             Stmt::FunctionDecl(decl) => self.evaluate_function_decl(&decl),
         }
     }
 
-    fn evaluate_program(&mut self, stmts: &Vec<Stmt>) -> Value {
+    fn evaluate_program(&mut self, stmts: &Vec<Stmt>) -> Result<Value, String> {
         let mut val = Value::Void;
 
         for stmt in stmts {
-            val = self.evaluate_stmt(stmt);
+            val = self.evaluate_stmt(stmt)?;
             if let Value::Break = val {
-                panic!("Break found outside of a loop");
+                return Err("Break found outside of a loop".to_string());
             }
             if let Value::Return(..) = val {
-                panic!("Return found outside of a function");
+                return Err("Return found outside of a function".to_string());
             }
         }
 
-        val
+        Ok(val)
     }
 
-    fn evaluate_block(&mut self, stmts: &Vec<Stmt>) -> Value {
+    fn evaluate_block(&mut self, stmts: &Vec<Stmt>) -> Result<Value, String> {
         let mut val = Value::Void;
 
         self.enter_scope();
         for stmt in stmts {
-            val = self.evaluate_stmt(stmt);
+            val = self.evaluate_stmt(stmt)?;
             match val {
                 Value::Break | Value::Return(..) => {
                     self.exit_scope();
-                    return val;
+                    return Ok(val);
                 }
                 _ => (),
             }
         }
         self.exit_scope();
 
-        val
+        Ok(val)
     }
 
-    fn evaluate_var_decl(&mut self, decl: &VarDecl) -> Value {
+    fn evaluate_var_decl(&mut self, decl: &VarDecl) -> Result<Value, String> {
         let value = match decl.initializer {
-            Some(ref expr) => self.evaluate_expr(expr),
+            Some(ref expr) => self.evaluate_expr(expr)?,
             None => Value::Void,
         };
 
         self.env.declare(decl.name.clone(), value.clone());
 
-        Value::Void
+        Ok(Value::Void)
     }
 
-    fn evaluate_assign(&mut self, assign: &Assign) -> Value {
-        let value = self.evaluate_expr(&assign.expr);
+    fn evaluate_assign(&mut self, assign: &Assign) -> Result<Value, String> {
+        let value = self.evaluate_expr(&assign.expr)?;
 
         if !self.env.update(assign.name.clone(), value.clone()) {
-            panic!("Undeclared variable: {}", assign.name);
+            return Err(format!("Undeclared variable: {}", assign.name));
         }
 
-        Value::Void
+        Ok(Value::Void)
     }
 
-    fn evaluate_if_stmt(&mut self, if_stmt: &IfStmt) -> Value {
-        let cond = self.evaluate_expr(&if_stmt.cond);
+    fn evaluate_if_stmt(&mut self, if_stmt: &IfStmt) -> Result<Value, String> {
+        let cond = self.evaluate_expr(&if_stmt.cond)?;
         if let Value::Bool(true) = cond {
             return self.evaluate_stmt(&*if_stmt.cons);
         } else {
@@ -95,32 +95,32 @@ impl Interpreter {
             }
         }
 
-        Value::Void
+        Ok(Value::Void)
     }
 
-    fn evaluate_while_stmt(&mut self, while_stmt: &WhileStmt) -> Value {
-        let mut cond = self.evaluate_expr(&while_stmt.cond);
+    fn evaluate_while_stmt(&mut self, while_stmt: &WhileStmt) -> Result<Value, String> {
+        let mut cond = self.evaluate_expr(&while_stmt.cond)?;
 
         while let Value::Bool(true) = cond {
-            let val = self.evaluate_stmt(&*while_stmt.body);
+            let val = self.evaluate_stmt(&*while_stmt.body)?;
             match val {
                 Value::Break => break,
-                Value::Return(..) => return val,
+                Value::Return(..) => return Ok(val),
                 _ => (),
             }
 
-            cond = self.evaluate_expr(&while_stmt.cond);
+            cond = self.evaluate_expr(&while_stmt.cond)?;
         }
 
-        Value::Void
+        Ok(Value::Void)
     }
 
-    fn evaluate_return_stmt(&mut self, return_stmt: &ReturnStmt) -> Value {
-        let value = self.evaluate_expr(&return_stmt.expr);
-        Value::Return(Box::new(value))
+    fn evaluate_return_stmt(&mut self, return_stmt: &ReturnStmt) -> Result<Value, String> {
+        let value = self.evaluate_expr(&return_stmt.expr)?;
+        Ok(Value::Return(Box::new(value)))
     }
 
-    fn evaluate_function_decl(&mut self, decl: &FunctionDecl) -> Value {
+    fn evaluate_function_decl(&mut self, decl: &FunctionDecl) -> Result<Value, String> {
         let function = Value::Function(
             decl.name.clone(),
             decl.params.clone(),
@@ -129,17 +129,17 @@ impl Interpreter {
 
         self.env.declare(decl.name.clone(), function);
 
-        Value::Void
+        Ok(Value::Void)
     }
 
-    fn evaluate_expr(&mut self, expr: &Expr) -> Value {
+    fn evaluate_expr(&mut self, expr: &Expr) -> Result<Value, String> {
         match expr {
-            Expr::LiteralBoolean(expr) => Value::Bool(expr.value),
-            Expr::LiteralNumber(expr) => Value::Number(expr.value),
-            Expr::LiteralString(expr) => Value::Str(expr.value.to_string()),
+            Expr::LiteralBoolean(expr) => Ok(Value::Bool(expr.value)),
+            Expr::LiteralNumber(expr) => Ok(Value::Number(expr.value)),
+            Expr::LiteralString(expr) => Ok(Value::Str(expr.value.to_string())),
             Expr::Identifier(expr) => match self.env.get(&expr.name) {
-                Some(value) => value.clone(),
-                None => panic!("Undeclared identifier {}", expr.name),
+                Some(value) => Ok(value.clone()),
+                None => Err(format!("Undeclared identifier {}", expr.name)),
             },
             Expr::UnaryExpr(expr) => self.evaluate_unary_expr(&expr.op, &*expr.expr),
             Expr::BinaryExpr(expr) => {
@@ -149,106 +149,124 @@ impl Interpreter {
         }
     }
 
-    fn evaluate_unary_expr(&mut self, op: &UnaryOp, expr: &Expr) -> Value {
-        let value = self.evaluate_expr(expr);
+    fn evaluate_unary_expr(&mut self, op: &UnaryOp, expr: &Expr) -> Result<Value, String> {
+        let value = self.evaluate_expr(expr)?;
         match value {
             Value::Bool(val) => self.evaluate_boolean_unary_expr(op, val),
             Value::Number(num) => self.evaluate_numeric_unary_expr(op, num),
-            _ => panic!("Unary operator not supported for {}", value),
+            _ => Err(format!("Unary operator not supported for {}", value)),
         }
     }
 
-    fn evaluate_boolean_unary_expr(&self, op: &UnaryOp, value: bool) -> Value {
+    fn evaluate_boolean_unary_expr(&self, op: &UnaryOp, value: bool) -> Result<Value, String> {
         match op {
-            UnaryOp::Not => Value::Bool(!value),
-            UnaryOp::Minus => panic!("Operator {:?} not supported for booleans", op),
+            UnaryOp::Not => Ok(Value::Bool(!value)),
+            UnaryOp::Minus => Err(format!("Operator {:?} not supported for booleans", op)),
         }
     }
 
-    fn evaluate_numeric_unary_expr(&self, op: &UnaryOp, value: i64) -> Value {
+    fn evaluate_numeric_unary_expr(&self, op: &UnaryOp, value: i64) -> Result<Value, String> {
         match op {
-            UnaryOp::Not => panic!("Operator {:?} not supported for numbers", op),
-            UnaryOp::Minus => Value::Number(-value),
+            UnaryOp::Not => Err(format!("Operator {:?} not supported for numbers", op)),
+            UnaryOp::Minus => Ok(Value::Number(-value)),
         }
     }
 
-    fn evaluate_binary_expr(&mut self, left: &Expr, op: &BinaryOp, right: &Expr) -> Value {
-        let left = self.evaluate_expr(left);
-        let right = self.evaluate_expr(right);
+    fn evaluate_binary_expr(
+        &mut self,
+        left: &Expr,
+        op: &BinaryOp,
+        right: &Expr,
+    ) -> Result<Value, String> {
+        let left = self.evaluate_expr(left)?;
+        let right = self.evaluate_expr(right)?;
         match (left, right) {
             (Value::Number(left), Value::Number(right)) => {
                 self.evaluate_numeric_binary_expr(left, op, right)
             }
             (Value::Str(left), Value::Str(right)) => match op {
-                BinaryOp::Plus => Value::Str(left + &right),
-                _ => panic!("Unsupported binary operator {:?} for strings {}", op, left),
+                BinaryOp::Plus => Ok(Value::Str(left + &right)),
+                _ => Err(format!(
+                    "Unsupported binary operator {:?} for strings {}",
+                    op, left
+                )),
             },
             (Value::Bool(left), Value::Bool(right)) => {
                 self.evaluate_boolean_binary_expr(left, op, right)
             }
-            (left, right) => panic!("Type mismatch between {} and {}", left, right),
+            (left, right) => Err(format!("Type mismatch between {} and {}", left, right)),
         }
     }
 
-    fn evaluate_numeric_binary_expr(&self, left: i64, op: &BinaryOp, right: i64) -> Value {
+    fn evaluate_numeric_binary_expr(
+        &self,
+        left: i64,
+        op: &BinaryOp,
+        right: i64,
+    ) -> Result<Value, String> {
         match op {
-            BinaryOp::Plus => Value::Number(left + right),
-            BinaryOp::Minus => Value::Number(left - right),
-            BinaryOp::Multiply => Value::Number(left * right),
-            BinaryOp::Divide => Value::Number(left / right),
-            BinaryOp::Mod => Value::Number(left % right),
-            BinaryOp::Eq => Value::Bool(left == right),
-            BinaryOp::Neq => Value::Bool(left != right),
-            BinaryOp::Gt => Value::Bool(left > right),
-            BinaryOp::Lt => Value::Bool(left < right),
-            BinaryOp::Geq => Value::Bool(left >= right),
-            BinaryOp::Leq => Value::Bool(left <= right),
-            _ => panic!("Unsupported binary operator {:?} for numbers", op),
+            BinaryOp::Plus => Ok(Value::Number(left + right)),
+            BinaryOp::Minus => Ok(Value::Number(left - right)),
+            BinaryOp::Multiply => Ok(Value::Number(left * right)),
+            BinaryOp::Divide => Ok(Value::Number(left / right)),
+            BinaryOp::Mod => Ok(Value::Number(left % right)),
+            BinaryOp::Eq => Ok(Value::Bool(left == right)),
+            BinaryOp::Neq => Ok(Value::Bool(left != right)),
+            BinaryOp::Gt => Ok(Value::Bool(left > right)),
+            BinaryOp::Lt => Ok(Value::Bool(left < right)),
+            BinaryOp::Geq => Ok(Value::Bool(left >= right)),
+            BinaryOp::Leq => Ok(Value::Bool(left <= right)),
+            _ => Err(format!("Unsupported binary operator {:?} for numbers", op)),
         }
     }
 
-    fn evaluate_boolean_binary_expr(&self, left: bool, op: &BinaryOp, right: bool) -> Value {
+    fn evaluate_boolean_binary_expr(
+        &self,
+        left: bool,
+        op: &BinaryOp,
+        right: bool,
+    ) -> Result<Value, String> {
         match op {
-            BinaryOp::And => Value::Bool(left && right),
-            BinaryOp::Or => Value::Bool(left || right),
-            BinaryOp::Eq => Value::Bool(left == right),
-            BinaryOp::Neq => Value::Bool(left != right),
-            _ => panic!("Unsupported binary operator {:?} for booleans", op),
+            BinaryOp::And => Ok(Value::Bool(left && right)),
+            BinaryOp::Or => Ok(Value::Bool(left || right)),
+            BinaryOp::Eq => Ok(Value::Bool(left == right)),
+            BinaryOp::Neq => Ok(Value::Bool(left != right)),
+            _ => Err(format!("Unsupported binary operator {:?} for booleans", op)),
         }
     }
 
-    fn evaluate_function_call(&mut self, call: &FunctionCall) -> Value {
+    fn evaluate_function_call(&mut self, call: &FunctionCall) -> Result<Value, String> {
         let decl = self.env.get(&call.name);
 
         let (params, body) = match decl {
             Some(Value::Function(.., params, body)) => (params.clone(), Rc::clone(body)),
-            Some(Value::BuiltinFunction0(.., func)) => return func(),
+            Some(Value::BuiltinFunction0(.., func)) => return Ok(func()),
             Some(Value::BuiltinFunction1(name, func)) => {
                 if call.args.len() != 1 {
-                    panic!("Function {} expects 1 argument", name);
+                    return Err(format!("Function {} expects 1 argument", name));
                 }
-                return func(self.evaluate_expr(&call.args[0]));
+                return Ok(func(self.evaluate_expr(&call.args[0])?));
             }
-            _ => panic!("Undeclared function {}", &call.name),
+            _ => return Err(format!("Undeclared function {}", &call.name)),
         };
 
         if call.args.len() != params.len() {
-            panic!(
+            return Err(format!(
                 "Expected {} args, but got {}",
                 params.len(),
                 call.args.len()
-            )
+            ));
         }
 
         self.enter_scope();
         for (i, param) in params.into_iter().enumerate() {
-            let arg_value = self.evaluate_expr(&call.args[i]);
+            let arg_value = self.evaluate_expr(&call.args[i])?;
             self.env.declare(param, arg_value);
         }
-        let result = self.evaluate_stmt(&body);
+        let result = self.evaluate_stmt(&body)?;
         self.exit_scope();
 
-        self.unwrap_return(result)
+        Ok(self.unwrap_return(result))
     }
 
     fn unwrap_return(&self, result: Value) -> Value {
@@ -511,8 +529,8 @@ twice(100)
     fn evaluate_input(input: &str) -> Value {
         let lexer = Lexer::new(input);
         let mut parser = Parser::new(lexer);
-        let program = parser.parse_program();
+        let program = parser.parse_program().unwrap();
         let mut interpreter = Interpreter::new();
-        interpreter.evaluate_stmt(&program)
+        interpreter.evaluate_stmt(&program).unwrap()
     }
 }

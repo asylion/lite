@@ -16,7 +16,7 @@ impl Lexer {
         }
     }
 
-    pub fn next_token(&mut self) -> Token {
+    pub fn next_token(&mut self) -> Result<Token, String> {
         self.skip_whitespace();
 
         let tok = match self.current_char() {
@@ -73,14 +73,14 @@ impl Lexer {
                     if ch.is_ascii_alphabetic() {
                         return self.identifier();
                     }
-                    self.unrecognized(ch)
+                    return Err(self.unrecognized(ch));
                 }
             },
-            None => Token::from_char(TokenKind::Eof, ' '),
+            None => Token::eof(),
         };
 
         self.advance();
-        tok
+        Ok(tok)
     }
 
     fn single_or_double_char_token(
@@ -89,7 +89,7 @@ impl Lexer {
         second_char: char,
         single_kind: TokenKind,
         double_kind: TokenKind,
-    ) -> Token {
+    ) -> Result<Token, String> {
         let mut value = String::new();
         value.push(first_char);
         self.advance();
@@ -98,13 +98,13 @@ impl Lexer {
             if ch == second_char {
                 value.push(ch);
                 self.advance();
-                return Token::from_string(double_kind, value);
+                return Ok(Token::from_string(double_kind, value));
             }
         }
-        Token::from_string(single_kind, value)
+        Ok(Token::from_string(single_kind, value))
     }
 
-    fn double_char_token(&mut self, ch: char, kind: TokenKind) -> Token {
+    fn double_char_token(&mut self, ch: char, kind: TokenKind) -> Result<Token, String> {
         let mut value = String::new();
         value.push(ch);
         self.advance();
@@ -113,14 +113,14 @@ impl Lexer {
             if second_char == ch {
                 value.push(ch);
                 self.advance();
-                return Token::from_string(kind, value);
+                return Ok(Token::from_string(kind, value));
             }
-            self.unrecognized(second_char)
+            return Err(self.unrecognized(second_char));
         }
-        self.unrecognized(ch)
+        Err(self.unrecognized(ch))
     }
 
-    fn string(&mut self) -> Token {
+    fn string(&mut self) -> Result<Token, String> {
         self.advance(); // Skip opening "
 
         let start = self.position;
@@ -130,16 +130,16 @@ impl Lexer {
 
             if ch == '"' {
                 let string = str::from_utf8(&self.input[start..end]).unwrap();
-                return Token::from_string(TokenKind::Str, string);
+                return Ok(Token::from_string(TokenKind::Str, string));
             }
 
             end += 1;
         }
 
-        panic!("Unterminated string");
+        Err("Unterminated string".to_string())
     }
 
-    fn number(&mut self) -> Token {
+    fn number(&mut self) -> Result<Token, String> {
         let start = self.position;
         let mut end = start;
         while let Some(ch) = self.current_char() {
@@ -151,10 +151,10 @@ impl Lexer {
             }
         }
         let number = str::from_utf8(&self.input[start..end]).unwrap();
-        Token::from_string(TokenKind::Number, number)
+        Ok(Token::from_string(TokenKind::Number, number))
     }
 
-    fn identifier(&mut self) -> Token {
+    fn identifier(&mut self) -> Result<Token, String> {
         let start = self.position;
         let mut end = start;
         while let Some(ch) = self.current_char() {
@@ -166,7 +166,7 @@ impl Lexer {
             }
         }
         let number = str::from_utf8(&self.input[start..end]).unwrap();
-        Token::from_string(token::identifier_kind(number), number)
+        Ok(Token::from_string(token::identifier_kind(number), number))
     }
 
     fn skip_whitespace(&mut self) {
@@ -193,8 +193,8 @@ impl Lexer {
         self.position += 1;
     }
 
-    fn unrecognized(&self, ch: char) -> ! {
-        panic!("Unrecognized token: {:?}", ch)
+    fn unrecognized(&self, ch: char) -> String {
+        format!("Unrecognized token: {:?}", ch)
     }
 }
 
@@ -259,7 +259,7 @@ def ,
         ];
 
         for (i, (kind, value)) in expected.into_iter().enumerate() {
-            let token = lexer.next_token();
+            let token = lexer.next_token().unwrap();
             assert_eq!(
                 kind, token.kind,
                 "[{}] - Expected token kind: {:?} but got: {:?}",

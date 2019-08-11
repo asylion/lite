@@ -69,6 +69,10 @@ impl Token {
             value: value.to_string(),
         }
     }
+
+    pub fn eof() -> Self {
+        Token::from_char(TokenKind::Eof, ' ')
+    }
 }
 
 pub fn identifier_kind(identifier: &str) -> TokenKind {

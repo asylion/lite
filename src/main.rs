@@ -28,6 +28,8 @@ fn main() {
         let mut interpreter = Interpreter::new();
         let lexer = Lexer::new(input);
         let mut parser = Parser::new(lexer);
-        interpreter.evaluate_stmt(&parser.parse_program());
+        interpreter
+            .evaluate_stmt(&parser.parse_program().unwrap())
+            .unwrap();
     }
 }
