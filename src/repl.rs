@@ -27,9 +27,7 @@ pub fn start() {
             }
         };
 
-        let value = interpreter.evaluate_stmt(&ast);
-
-        match value {
+        match interpreter.evaluate_stmt(&ast) {
             Ok(value) => match value {
                 Value::Void => (),
                 _ => println!("{}", value),
