@@ -10,19 +10,17 @@ pub fn functions() -> HashMap<String, Value> {
         "println".to_string(),
         Value::BuiltinFunction1("println".to_string(), |x| {
             println!("{}", x);
-            Value::Void
+            Ok(Value::Void)
         }),
     );
 
     functions.insert(
         "time".to_string(),
         Value::BuiltinFunction0("time".to_string(), || {
-            Value::Number(
-                SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_secs() as i64,
-            )
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map_err(|err| err.to_string())
+                .and_then(|duration| Ok(Value::Number(duration.as_secs() as i64)))
         }),
     );
 

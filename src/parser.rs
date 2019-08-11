@@ -11,7 +11,7 @@ pub struct Parser {
 }
 
 impl Parser {
-    pub fn new(mut lexer: Lexer) -> Self {
+    pub fn new(lexer: Lexer) -> Self {
         Parser {
             lexer: lexer,
             current_token: Token::eof(),

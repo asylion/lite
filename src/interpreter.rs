@@ -240,12 +240,12 @@ impl Interpreter {
 
         let (params, body) = match decl {
             Some(Value::Function(.., params, body)) => (params.clone(), Rc::clone(body)),
-            Some(Value::BuiltinFunction0(.., func)) => return Ok(func()),
+            Some(Value::BuiltinFunction0(.., func)) => return Ok(func()?),
             Some(Value::BuiltinFunction1(name, func)) => {
                 if call.args.len() != 1 {
                     return Err(format!("Function {} expects 1 argument", name));
                 }
-                return Ok(func(self.evaluate_expr(&call.args[0])?));
+                return Ok(func(self.evaluate_expr(&call.args[0])?)?);
             }
             _ => return Err(format!("Undeclared function {}", &call.name)),
         };

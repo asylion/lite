@@ -9,8 +9,8 @@ pub enum Value {
     Break,
     Return(Box<Value>),
     Function(String, Vec<String>, Rc<crate::ast::Stmt>),
-    BuiltinFunction0(String, fn() -> Value),
-    BuiltinFunction1(String, fn(Value) -> Value),
+    BuiltinFunction0(String, fn() -> Result<Value, String>),
+    BuiltinFunction1(String, fn(Value) -> Result<Value, String>),
     Void,
 }
 
